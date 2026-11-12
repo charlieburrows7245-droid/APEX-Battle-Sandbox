@@ -15,6 +15,9 @@ assert.equal(effectiveFirepower(type(20),type(1)),2500);assert.equal(effectiveFi
 assert.equal(effectiveFirepower(type(32),type(5)),4000);assert.equal(effectiveFirepower(type(32),type(10)),4000);assert.equal(effectiveFirepower(type(32),'tank'),1000);
 assert.equal(effectiveFirepower(type(21),'heli'),0);assert.equal(effectiveFirepower(type(28),'tank'),20,'detector is armed');
 assert.equal(targetPriority(type(5),'base'),1);assert.equal(targetPriority(type(5),'tank'),0);
+for(const id of [0,1,2,3,5,10,20,27,34,35,36,37,38,39,44,45,58]){const targetType=type(id);assert.equal(weaponRange({type:'aa',members:[{}]},{type:targetType,firing:true,moving:true}),900,'TanSAM normal range vs '+byId(id).name);}
+assert.equal(weaponRange({type:'aa',members:[{}]},{type:'base',firing:true}),900);
+assert.equal(weaponRange({type:'aa',members:[{}]},{type:'heli',firing:true}),2700);
 const g=id=>({type:type(id),members:[{}]});assert.equal(weaponRange(g(22),{type:'base',firing:true}),2160);assert.equal(weaponRange(g(22),{type:'tank',firing:true}),720);
 assert.equal(weaponRange(g(32),g(5)),1620);assert.equal(weaponRange(g(32)),810);
 assert.equal(weaponRange(g(6),{type:'tank',moving:true}),1800);assert.equal(weaponRange(g(38),{type:'jet'}),2700);
