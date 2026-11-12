@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id),canvas=$('game'),mini=$('mini'),mc=mini.
 let ctx=canvas.getContext('2d',{alpha:false});
 const MAP_LIMIT=1200,MAP_STEP_X=90,MAP_STEP_Y=90,WORLD_WIDTH=MAP_LIMIT*MAP_STEP_X,WORLD_HEIGHT=MAP_LIMIT*MAP_STEP_Y;
 function mapCoordinates(p){return{x:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.x/MAP_STEP_X))),y:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.y/MAP_STEP_Y)))}}
-const TYPES={tank:{name:'Type 99',icon:'▰',speed:106,dw5Speed:2,range:165,damage:19,hp:160},aa:{name:'TanSAM',icon:'▤',speed:53,dw5Speed:1,range:240,damage:15,hp:110},heli:{name:'Apache',icon:'✣',speed:112,range:180,damage:16,hp:100},jet:{name:'J-10',icon:'✈',speed:170,range:210,damage:22,hp:100},base:{name:'Military base',icon:'▦',speed:0,range:210,damage:12,hp:1000},airbase:{name:'Airbase',icon:'⊞',speed:0,range:0,damage:0,hp:800}};
+const TYPES={tank:{name:'Type 99',icon:'▰',speed:150,dw5Speed:2,range:165,damage:19,hp:160},aa:{name:'TanSAM',icon:'▤',speed:75,dw5Speed:1,range:240,damage:15,hp:110},heli:{name:'Apache',icon:'✣',speed:112,range:180,damage:16,hp:100},jet:{name:'J-10',icon:'✈',speed:170,range:210,damage:22,hp:100},base:{name:'Military base',icon:'▦',speed:0,range:210,damage:12,hp:1000},airbase:{name:'Airbase',icon:'⊞',speed:0,range:0,damage:0,hp:800}};
 let units=[],selected=new Set(),team=0,tool='select',paused=false,speed=1,zoom=.65,cam={x:1200,y:800},W=0,H=0,drag=null,mouse={x:0,y:0},shots=[],uid=0,last=0,statsTimer=0;
 const colors=['#65ff38','#ff3535','#00cfff'];
 function notice(t){$('notice').textContent=t}
@@ -411,7 +411,30 @@ document.addEventListener('dragstart',e=>{if(e.target.tagName==='IMG')e.preventD
 
 
 // Carry momentum through a turn; travel direction can lead the hull slightly.
-function moveTroopWithDrift(u,t,dt){if(!u.target){u.moveSpeed=0;return;}const dx=u.target.x-u.x,dy=(u.target.y-u.y)*3,d=Math.hypot(dx,dy),goal=d>.01?Math.atan2(dy,dx):u.angle,acceleration=t.speed*3;u.travelAngle=turnToward(u.travelAngle??u.angle,goal,dt*3.8);u.angle=turnToward(u.angle,goal,dt*3);const error=Math.abs(Math.atan2(Math.sin(goal-u.angle),Math.cos(goal-u.angle))),turnSpeed=.45+.55*Math.cos(error/2)**2,desired=Math.min(t.speed*turnSpeed,Math.sqrt(2*acceleration*d)),current=u.moveSpeed??0;u.moveSpeed=current+Math.sign(desired-current)*Math.min(Math.abs(desired-current),acceleration*dt);const step=u.moveSpeed*dt;if(d<=Math.max(.75,step)){u.x=u.target.x;u.y=u.target.y;u.target=null;u.moveSpeed=0;}else{u.x+=Math.cos(u.travelAngle)*step;u.y+=Math.sin(u.travelAngle)*step/3;}}
+// Timed DW5 99G straight run: about 1,065 screen/world px in 7 s at 1:1 zoom.
+// Calibrated visual speed, not a claim about DW5's private server formula.
+// TanSAM keeps the published 1:2 speed ratio. Aircraft retain their existing speeds.
+function moveTroopWithDrift(u,t,dt){
+ if(!u.target||!t.speed){u.moveSpeed=0;return;}
+ // Fixed maximum step keeps steering and braking consistent across frame rates.
+ for(let remaining=dt;remaining>0&&u.target;){
+  const h=Math.min(remaining,1/120);remaining-=h;
+  const dx=u.target.x-u.x,dy=(u.target.y-u.y)*3,d=Math.hypot(dx,dy);
+  if(d<=.75){u.x=u.target.x;u.y=u.target.y;u.target=null;u.moveSpeed=0;break;}
+  const goal=Math.atan2(dy,dx),acceleration=t.speed*3;
+  u.angle=turnToward(u.angle,goal,h*3);
+  const error=Math.abs(Math.atan2(Math.sin(goal-u.angle),Math.cos(goal-u.angle)));
+  const turnSpeed=.45+.55*Math.cos(error/2)**2;
+  const desired=Math.min(t.speed*turnSpeed,Math.sqrt(2*acceleration*d),d*4);
+  const current=u.moveSpeed??0;
+  u.moveSpeed=current+Math.sign(desired-current)*Math.min(Math.abs(desired-current),acceleration*h);
+  // Retain rolling turns, but converge on the final slot instead of circling it.
+  const steering=3.8+12*Math.max(0,1-d/(t.speed*.5));
+  u.travelAngle=turnToward(u.travelAngle??u.angle,goal,h*steering);
+  const step=Math.min(u.moveSpeed*h,d);
+  u.x+=Math.cos(u.travelAngle)*step;u.y+=Math.sin(u.travelAngle)*step/3;
+ }
+}
 
 
 function baseFlagAsset(u){return u.team===PLAYER_TEAM?'flaggeg.png':friendlyTeams(u.team,PLAYER_TEAM)?'flaggeb.png':'flagger.png';}
