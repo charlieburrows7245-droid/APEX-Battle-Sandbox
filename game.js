@@ -158,17 +158,17 @@ function drawBaseProduction(u){
  const frame=17,frames=72;
  if(body?.complete&&body.naturalWidth){
   const fw=body.naturalWidth/frames,fh=body.naturalHeight,scale=Math.min(3,92/Math.max(fw,fh));
-  const px=-fw*scale/2,py=-91-fh*scale/2;
+  const px=-fw*scale/2,py=-74-fh*scale/2;
   ctx.drawImage(body,fw*frame,0,fw,fh,px,py,fw*scale,fh*scale);
   if(!air&&turret?.complete&&turret.naturalWidth){
    const tw=turret.naturalWidth/frames,th=turret.naturalHeight;
    const turretX=-(tw*scale)/2-troop.pivot*scale*.6;
-   const turretY=-91-(th*scale)/2+troop.raise*scale;
+   const turretY=-74-(th*scale)/2+troop.raise*scale;
    ctx.drawImage(turret,tw*frame,0,tw,th,turretX,turretY,tw*scale,th*scale);
   }
  }else{
   const icon=productionIcon(entry?.id);
-  if(icon?.complete&&icon.naturalWidth)ctx.drawImage(icon,-43,-105,86,70);
+  if(icon?.complete&&icon.naturalWidth)ctx.drawImage(icon,-43,-88,86,70);
  }
  ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.shadowColor='rgba(0,0,0,.95)';ctx.shadowBlur=3;
  ctx.font='bold 21px Verdana, sans-serif';ctx.fillStyle='#fff';ctx.fillText(String(remaining),0,-7);
