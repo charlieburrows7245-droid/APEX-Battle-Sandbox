@@ -67,7 +67,22 @@ function upgradeBaseFlak(u){syncBaseDefenceHealth(u);const missing=u.turretHealt
  u.defenceGuns=level+1;syncBaseDefenceHealth(u);
  u.turretHealth[u.turretHealth.length-1]=inherited;
  u.hp=u.turretHealth.reduce((sum,h)=>sum+h,0);return true;}
-function drawStarterDefences(u,air){ctx.save();const orientation=air?3:1,ax=air?510:450,ay=air?150:130,maxed=true;const gun=dwArt['flak.png'];const health=u.turretHealth??[];if(gun.complete&&gun.naturalWidth){for(let j=health.length-1;j>=0;j--){if(!(health[j]>0))continue;const x=ax+DW5_DEFENCE.x[orientation][j],y=ay+DW5_DEFENCE.y[orientation][j]/3;const frame=idleTurretFrame(u,j,last);drawSmoothTurret(gun,frame,x,y)}}const front=dwArt[maxed?'mauer2b.png':'mauer1a.png'],side=dwArt[maxed?'mauer2d.png':'mauer1d.png'];if(true){if(front.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+(maxed?10:20));if(side.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-(maxed?180:170))}ctx.restore()}
+// Each defence gun tracks the actual individual selected by combat logic.
+// Convert the 3:1 compressed world Y-axis to the same heading space as troops.
+function baseTurretFacingFrame(base,index,now,worldX,worldY){
+ const idle=idleTurretFrame(base,index,now);
+ const guns=idleTurrets.get(base),state=guns[index];
+ const target=units.find(u=>u.id===base.baseTargetId&&u.hp>0);
+ const active=target&&base.hp>0&&!friendlyTeams(base.team,target.team);
+ const desired=active?headingFrame(Math.atan2((target.y-worldY)*3,target.x-worldX)):idle;
+ if(!Number.isFinite(state.facing))state.facing=idle;
+ const elapsed=Math.min(100,Math.max(0,now-(state.facingAt??now)));
+ state.facingAt=now;
+ const delta=(desired-state.facing+108)%72-36;
+ state.facing=(state.facing+Math.sign(delta)*Math.min(Math.abs(delta),elapsed*(active?0.055:0.025))+72)%72;
+ return state.facing;
+}
+function drawStarterDefences(u,air){ctx.save();const orientation=air?3:1,ax=air?510:450,ay=air?150:130,maxed=true;const gun=dwArt['flak.png'];const health=u.turretHealth??[];if(gun.complete&&gun.naturalWidth){for(let j=health.length-1;j>=0;j--){if(!(health[j]>0))continue;const x=ax+DW5_DEFENCE.x[orientation][j],y=ay+DW5_DEFENCE.y[orientation][j]/3;const frame=baseTurretFacingFrame(u,j,last,x+u.x,y+u.y);drawSmoothTurret(gun,frame,x,y)}}const front=dwArt[maxed?'mauer2b.png':'mauer1a.png'],side=dwArt[maxed?'mauer2d.png':'mauer1d.png'];if(true){if(front.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+(maxed?10:20));if(side.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-(maxed?180:170))}ctx.restore()}
 // Native factory stages 0..9 use one sprite; stages 10..19 add a second
 // sprite at the offsets used by DW5's base renderer.
 const FACTORY_TYPES={concrete:{name:'Concrete factory',resource:'Concrete',sprite:'g0.png',index:1},steel:{name:'Steel mill',resource:'Steel',sprite:'g1.png',index:2},carbon:{name:'Carbon factory',resource:'Carbon',sprite:'g2.png',index:3},fuel:{name:'Oil refinery',resource:'Fuel',sprite:'g3.png',index:4}};
