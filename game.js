@@ -26,7 +26,15 @@ const DW5_FORMATION_X=[0,1,1,-1,-1,0,2,0,-2,2,2,-2,-2,1,1,-1,-1,3,3,-3,-3,0,4,0,
 const DW5_FORMATION_Y=[0,-1,1,1,-1,-2,0,2,0,-2,2,2,-2,-3,3,-3,3,-1,1,-1,1,-4,0,4,0,-3,3,3,-3,2,2,-2,-2,4,-4,4,-4,1,1,-1,-1,5,-5,5,-5,6,0,-6,0];
 let nextGroupId=0;
 function troopSpacing(type){return DW5_MENU_UNITS.find(e=>e.type===type)?.render?.spacing??48;}
-function formationOffset(type,index){return{x:DW5_FORMATION_X[index%49]*troopSpacing(type),y:DW5_FORMATION_Y[index%49]*troopSpacing(type)/3};}
+function formationOffset(type,index){
+ // Howitzer divisions use a compact 7x7 formation, rather than the
+ // 13-column spiral intended for smaller vehicles. Keep a single group.
+ if(type==='unit5'){
+  const slot=index%49,col=slot%7,row=Math.floor(slot/7),spacing=48;
+  return{x:(col-3)*spacing,y:(row-3)*spacing/3};
+ }
+ return{x:DW5_FORMATION_X[index%49]*troopSpacing(type),y:DW5_FORMATION_Y[index%49]*troopSpacing(type)/3};
+}
 function friendlyTeams(a,b){return a===b||(a===0&&b===2)||(a===2&&b===0);}
 function troopRelationColor(side){return side===3?'#c2bd9f':side===PLAYER_TEAM?'#65ff38':friendlyTeams(side,PLAYER_TEAM)?'#00cfff':'#ff3535';}
 function troopGroups(list=units){const groups=new Map();for(const u of list){if(!TYPES[u.type]?.speed)continue;const key=u.groupId??'single-'+u.id;let g=groups.get(key);if(!g){g=[];groups.set(key,g);}g.push(u);}return [...groups.values()];}
