@@ -1011,7 +1011,7 @@ function moveTroopWithDrift(u,t,dt){
   const oldX=u.x,oldY=u.y;
   u.x+=Math.cos(u.travelAngle)*step;u.y+=Math.sin(u.travelAngle)*step/3;
   if(obstacles.length)keepGroundOutsideBases(u,oldX,oldY,obstacles);
-  if(!u._divisionAnchor&&!u.formationOrder)preventTroopPenetration(u,oldX,oldY);
+  if(!u._divisionAnchor)preventTroopPenetration(u,oldX,oldY);
  }
 }
 
