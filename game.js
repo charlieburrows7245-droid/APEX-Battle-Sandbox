@@ -205,12 +205,18 @@ ctx.restore()}
 function drawTargetUnitHealth(u){
  if(!TYPES[u.type]?.speed||u.hp<=0||!Number.isFinite(u.lastUnderFireAt)||combatClock-u.lastUnderFireAt>2)return;
  const max=TYPES[u.type].hp,ratio=Math.max(0,Math.min(1,u.hp/max));
- // Compact DW5-style red/green split bar. Exact original dimensions
- // still require a pixel reference from the live DW5 interface.
- const width=38,height=5,x=u.x-width/2,y=u.y-35;
- ctx.save();ctx.fillStyle='#000000';ctx.fillRect(x-1,y-1,width+2,height+2);
- ctx.fillStyle='#e22b27';ctx.fillRect(x,y,width,height); // Lost health (red)
- ctx.fillStyle='#37d72b';ctx.fillRect(x,y,width*ratio,height); // Remaining health (green)
+ // DW5 canvas measurement: black horizontal stroke 62px x 3px,
+ // health stroke 2px. Convert screen pixels to world units so the bar
+ // keeps the measured apparent size regardless of sandbox camera zoom.
+ const pixel=1/Math.max(.01,zoom),width=62*pixel;
+ const x=u.x-width/2,y=u.y-35;
+ ctx.save();
+ ctx.lineCap='butt';
+ ctx.strokeStyle='#000000';ctx.lineWidth=3*pixel;
+ ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+width,y);ctx.stroke();
+ ctx.lineWidth=2*pixel;
+ ctx.strokeStyle='#ff0000';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+width,y);ctx.stroke(); // Lost health
+ if(ratio>0){ctx.strokeStyle='#00dd00';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+width*ratio,y);ctx.stroke();} // Remaining health
  ctx.restore();
 }
 function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=type==='heli'||type==='jet';const x=base.x+(base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced){const offset=formationOffset(type,produced.groupSlot),exit=air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}updateDivisionMovement(dt);for(const u of units){const t=TYPES[u.type];if(u.formationOrder&&u.target){const error=Math.hypot(u.target.x-u.x,3*(u.target.y-u.y));const boost=1+Math.min(.55,Math.max(0,(error-troopSpacing(u.type)*.5)/Math.max(1,troopSpacing(u.type)*5)));moveTroopWithDrift(u,{...t,speed:t.speed*boost},dt);}else moveTroopWithDrift(u,t,dt);}updateDivisionCombat(dt);updatePendingGroupJoins();}
