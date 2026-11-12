@@ -569,28 +569,42 @@ function drawTerrainView(){
  ctx.restore();
 }
 
-/* Seeded terrain prototype: persistent river geometry, separate from the ground texture.
-   Rivers are visual-only until DW5 crossing/pathfinding rules are verified. */
+/* DW5-inspired, seed-stable narrow river network. Bridges are visual previews:
+   terrain collision and pathfinding remain deliberately unchanged. */
 let terrainSeed=Number(localStorage.getItem('apexTerrainSeed')||'42')||42;
 let terrainRiversEnabled=localStorage.getItem('apexTerrainRivers')==='true';
 let riverPaths=[];
+const bridgeSprites=['neuebruecke1.png','neuebruecke2.png','neuebrueckeh4.png','neuebrueckev4.png'].map(file=>{
+ const im=new Image();im.src='https://www.5.deltawars.com/i/'+file;return im;
+});
 function generateRiverPaths(){
  let state=terrainSeed>>>0;
  const random=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
- riverPaths=[];
+ const routes=[];riverPaths=[];
  const count=2+Math.floor(random()*2);
  for(let n=0;n<count;n++){
-  const horizontal=random()>.5,points=[],width=(170+random()*190);
-  const base=(.20+random()*.60)*(horizontal?WORLD_HEIGHT:WORLD_WIDTH);
-  const phase=random()*Math.PI*2,frequency=1.3+random()*2.0;
-  for(let i=0;i<=64;i++){
-   const t=i/64,along=t*(horizontal?WORLD_WIDTH:WORLD_HEIGHT);
-   const cross=base+Math.sin(t*Math.PI*2*frequency+phase)*width*2.8+
-      Math.sin(t*Math.PI*5+phase*.73)*width*.8;
+  const horizontal=n===0?false:random()>.5,points=[];
+  const span=horizontal?WORLD_HEIGHT:WORLD_WIDTH;
+  const base=(.16+random()*.68)*span,phase=random()*6.283;
+  const amplitude=span*(.035+random()*.035),frequency=1.5+random()*1.7;
+  const width=25+random()*18;
+  for(let i=0;i<=100;i++){
+   const t=i/100,along=t*(horizontal?WORLD_WIDTH:WORLD_HEIGHT);
+   const cross=base+Math.sin(t*Math.PI*2*frequency+phase)*amplitude+
+      Math.sin(t*Math.PI*7+phase*.4)*amplitude*.3+
+      Math.sin(t*Math.PI*15+phase)*amplitude*.10;
    points.push(horizontal?{x:along,y:cross}:{x:cross,y:along});
   }
-  riverPaths.push({points,width});
+  const bridges=[];
+  const number=2+Math.floor(random()*3);
+  for(let j=0;j<number;j++){
+   const index=Math.floor((.12+(j+.4+random()*.2)/number*.76)*100);
+   const p=points[Math.min(99,index)],prev=points[Math.max(0,index-1)],next=points[Math.min(100,index+1)];
+   bridges.push({x:p.x,y:p.y,angle:Math.atan2(next.y-prev.y,next.x-prev.x)+Math.PI/2});
+  }
+  routes.push({points,width,bridges});
  }
+ riverPaths=routes;
 }
 function drawGeneratedRivers(){
  if(!terrainRiversEnabled)return;
@@ -598,14 +612,26 @@ function drawGeneratedRivers(){
  ctx.beginPath();ctx.rect(0,0,WORLD_WIDTH,WORLD_HEIGHT);ctx.clip();
  ctx.lineJoin='round';ctx.lineCap='round';
  for(const river of riverPaths){
-  const p=river.points;
-  ctx.beginPath();ctx.moveTo(p[0].x,p[0].y);
+  const p=river.points;ctx.beginPath();ctx.moveTo(p[0].x,p[0].y);
   for(let i=1;i<p.length-1;i++)ctx.quadraticCurveTo(p[i].x,p[i].y,(p[i].x+p[i+1].x)/2,(p[i].y+p[i+1].y)/2);
   ctx.lineTo(p[p.length-1].x,p[p.length-1].y);
-  for(const [extra,color] of [[125,'rgba(79,76,44,.65)'],[60,'#9b9670'],[0,'#426b76']]){
+  for(const [extra,color] of [[19,'rgba(55,58,44,.78)'],[9,'#797b69'],[3,'#182e3b'],[0,'#315467']]){
    ctx.strokeStyle=color;ctx.lineWidth=river.width+extra;ctx.stroke();
   }
-  ctx.strokeStyle='rgba(140,189,194,.22)';ctx.lineWidth=river.width*.18;ctx.stroke();
+  ctx.strokeStyle='rgba(141,174,183,.40)';ctx.lineWidth=1.5;ctx.stroke();
+ }
+ for(const river of riverPaths)for(let i=0;i<river.bridges.length;i++){
+  const bridge=river.bridges[i];ctx.save();ctx.translate(bridge.x,bridge.y);ctx.rotate(bridge.angle);
+  const length=river.width+38;
+  const sprite=bridgeSprites[i%bridgeSprites.length];
+  if(sprite.complete&&sprite.naturalWidth){
+   ctx.drawImage(sprite,-length/2,-13,length,26);
+  }else{
+   ctx.fillStyle='#74716b';ctx.fillRect(-length/2,-11,length,22);
+   ctx.strokeStyle='#c4c0a9';ctx.lineWidth=2;ctx.strokeRect(-length/2,-11,length,22);
+   ctx.strokeStyle='#46433e';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-length/2,0);ctx.lineTo(length/2,0);ctx.stroke();
+  }
+  ctx.restore();
  }
  ctx.restore();
 }
@@ -615,7 +641,7 @@ if(terrainButton)terrainButton.addEventListener('click',()=>{
  terrainSeed=(terrainSeed+1)>>>0;terrainRiversEnabled=true;
  localStorage.setItem('apexTerrainSeed',String(terrainSeed));
  localStorage.setItem('apexTerrainRivers','true');
- generateRiverPaths();notice('Generated terrain seed '+terrainSeed+' (rivers visual-only)');
+ generateRiverPaths();notice('River and bridge preview seed '+terrainSeed+' (visual only)');
 });
 
 let fpsFrames=0,fpsWindow=0,lastMini=0,groundPattern=null;
