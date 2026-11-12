@@ -1,7 +1,7 @@
 const fs=require('fs'),vm=require('vm');const game=fs.readFileSync(require('path').join(__dirname,'..','game.js'),'utf8');const moduleCode=game.slice(game.indexOf('// DW5 help.deltawars.com/'));const declarations=['const TYPES='+game.match(/const TYPES=([^\n]+);/)[1]+';',...['DW5_FORMATION_X','DW5_FORMATION_Y'].map(n=>'const '+n+'='+game.match(new RegExp('const '+n+'=([^\\n]+);'))[1]+';'),...['troopSpacing','formationOffset','friendlyTeams','troopGroups','baseGunCount','upgradeBaseFlak','repairTroopGroups'].map(n=>game.match(new RegExp('function '+n+'[^\\n]+'))[0])].join('\n');const tests=`
 const assert=require('assert');
 let seq=0;function unit(type,x,y,side=0,groupId=1,slot=0){return{id:++seq,type,x,y,team:side,groupId,groupSlot:slot,hp:TYPES[type].hp,angle:0};}
-function reset(list){units=list;shots=[];combatCooldowns.clear();combatClock=0;}
+function reset(list){units=list;shots=[];combatCooldowns.clear();attackerCasualtyTimes.clear();combatClock=0;}
 function group(type,x,y,side,id,count){return Array.from({length:count},(_,i)=>{const o=formationOffset(type,i);return unit(type,x+o.x,y+o.y,side,id,i);});}
 reset([...group('tank',0,0,0,1,49),...group('tank',700,0,1,2,49)]);updateDivisionCombat(.01);assert.equal(shots.length,98,'every member of both divisions fires');assert(shots.some(s=>s.x<0),'rear members fire too');assert.equal(units.length,96);const firstHp=units.reduce((n,u)=>n+u.hp,0);updateDivisionCombat(.2);assert.equal(units.reduce((n,u)=>n+u.hp,0),firstHp,'cooldown');
 const aa={type:'aa',members:[unit('aa',0,0)]};assert.equal(weaponRange(aa),900);assert.equal(weaponRange(aa,{type:'heli',members:[]}),2700);assert.equal(weaponRange(aa,{type:'jet',members:[]}),900);assert.equal(weaponRange(aa,{type:'heli',members:[],firing:true}),2700);assert.equal(weaponRange(aa,{type:'tank',members:[],firing:true}),1800);
@@ -24,7 +24,14 @@ const saved=JSON.parse(JSON.stringify(units));reset(saved);repairTroopGroups();t
 updateDivisionCombat(.02);targetGroup=combatGroups()[0];applyGroupDamage(targetGroup,1e9);assert.equal(units.filter(u=>u.hp>0).length,47,'next last slot dies after interval');
 assert.equal(groupHealthSummary(units.filter(u=>u.hp>0)).maximum,49*160,'capacity survives casualties');
 reset(group('tank',0,0,0,1,49));for(let second=0;second<10;second++){updateDivisionCombat(1);targetGroup=combatGroups()[0];applyGroupDamage(targetGroup,1e9);}assert.equal(units.filter(u=>u.hp>0).length,39,'ten seconds: at most ten casualties');
-reset([...group('tank',0,0,0,1,49),...group('tank',700,0,1,2,49),...group('tank',710,0,1,3,49)]);updateDivisionCombat(.01);assert.equal(units.filter(u=>u.team===0).length,48,'multiple attacking divisions cannot bypass casualty limit');
+reset([...group('tank',0,0,0,1,49),...group('tank',700,0,1,2,49),...group('tank',710,0,1,3,49)]);updateDivisionCombat(.01);assert.equal(units.filter(u=>u.team===0).length,47,'two lethal attacking divisions can each kill one defender');
+reset(group('tank',0,0,0,1,49));targetGroup=combatGroups()[0];
+applyAttackerVolley(targetGroup,1e9,'gA');applyAttackerVolley(targetGroup,1e9,'gB');
+assert.equal(units.filter(u=>u.hp>0).length,47,'two attackers may cause two casualties in one tick');
+applyAttackerVolley(targetGroup,1e9,'gA');applyAttackerVolley(targetGroup,1e9,'gB');
+assert.equal(units.filter(u=>u.hp>0).length,47,'each attacker has its own one-second limit');
+combatClock+=1;applyAttackerVolley(targetGroup,1e9,'gA');
+assert.equal(units.filter(u=>u.hp>0).length,46,'attacker can kill again after a second');
 reset(group('tank',0,0,0,1,49));targetGroup=combatGroups()[0];syncGroupHealthCapacity(targetGroup);applyGroupDamage(targetGroup,1e9);updateDivisionCombat(10);assert.equal(units.length,48,'no delayed damage debt');
 const base=unit('base',0,0);base.defenceGuns=2;base.wallLevel=1;syncBaseDefenceHealth(base);
 assert.equal(base.hp,130000);assert.equal(baseMaxHealth(base),130000);assert.equal(baseGunCount(base),2);
