@@ -435,7 +435,49 @@ function preventTroopPenetration(u,oldX,oldY){
   u.x=oldX;u.y=oldY;u.moveSpeed=0;return;
  }
 }
-function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=!!nativeTroops[type]?.air;const x=base.x+(base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced&&!produced.joinOrder){const offset=formationOffset(type,produced.groupSlot),exit=air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}updateDivisionMovement(dt);for(const u of units){const t=TYPES[u.type];if(u.formationOrder&&u.target){const error=Math.hypot(u.target.x-u.x,3*(u.target.y-u.y));const boost=1+Math.min(.55,Math.max(0,(error-troopSpacing(u.type)*.5)/Math.max(1,troopSpacing(u.type)*5)));moveTroopWithDrift(u,{...t,speed:t.speed*boost},dt);}else moveTroopWithDrift(u,t,dt);}updateDivisionCombat(dt);updatePendingGroupJoins();}
+// Last-resort unsticking for ground vehicles already interpenetrating.
+// Only relocate to a verified empty nearby position; never teleport through
+// another formation or disturb aircraft.
+function recoverTrappedGroundTroops(dt){
+ const ground=units.filter(u=>u.hp>0&&TYPES[u.type]?.speed&&!nativeTroops[u.type]?.air);
+ const radius=u=>Math.min(38,Math.max(18,troopSpacing(u.type)*.35));
+ const clear=(u,x,y)=>{
+  if(x<0||x>WORLD_WIDTH||y<0||y>WORLD_HEIGHT)return false;
+  for(const v of ground){
+   if(v===u||v.groupId===u.groupId)continue;
+   const dx=x-v.x,dy=(y-v.y)*3,min=radius(u)+radius(v)+8;
+   if(dx*dx+dy*dy<min*min)return false;
+  }
+  for(const b of groundBaseObstacles()){
+   const dx=x-b.x,dy=y-b.y;
+   if(dx*dx/(b.rx*b.rx)+dy*dy/(b.ry*b.ry)<1)return false;
+  }
+  return true;
+ };
+ for(const u of ground){
+  if(!u.target&&!u.formationOrder){u.trappedFor=0;continue;}
+  const overlapped=ground.some(v=>v!==u&&v.groupId!==u.groupId&&
+   Math.hypot(u.x-v.x,(u.y-v.y)*3)<radius(u)+radius(v)-3);
+  if(!overlapped){u.trappedFor=0;continue;}
+  u.trappedFor=(u.trappedFor||0)+dt;
+  if(u.trappedFor<1.5)continue;
+  // Search the closest clear spot first. Fixed angle order makes recovery
+  // deterministic and avoids random jumping back and forth.
+  let found=null;
+  for(const dist of [24,40,60,80,110,150,200]){
+   for(let i=0;i<16;i++){
+    const angle=i*Math.PI/8,x=u.x+Math.cos(angle)*dist,y=u.y+Math.sin(angle)*dist/3;
+    if(clear(u,x,y)){found={x,y};break;}
+   }
+   if(found)break;
+  }
+  if(found){
+   u.x=found.x;u.y=found.y;u.moveSpeed=0;
+   u.troopDetour=null;u.trappedFor=0;
+  }else u.trappedFor=1; // Retry later if no genuinely clear space exists.
+ }
+}
+function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=!!nativeTroops[type]?.air;const x=base.x+(base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced&&!produced.joinOrder){const offset=formationOffset(type,produced.groupSlot),exit=air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}updateDivisionMovement(dt);for(const u of units){const t=TYPES[u.type];if(u.formationOrder&&u.target){const error=Math.hypot(u.target.x-u.x,3*(u.target.y-u.y));const boost=1+Math.min(.55,Math.max(0,(error-troopSpacing(u.type)*.5)/Math.max(1,troopSpacing(u.type)*5)));moveTroopWithDrift(u,{...t,speed:t.speed*boost},dt);}else moveTroopWithDrift(u,t,dt);}recoverTrappedGroundTroops(dt);updateDivisionCombat(dt);updatePendingGroupJoins();}
 // DW5 Xo(): seven position-hashed ground tiles, 850px columns,
 // 280px rows, odd rows offset by -400px; even rows are painted first.
 function groundVariant(x,y){let g=314159265+x*y;for(let i=0;i<2;i++){g^=g<<13;g^=g<<17;g^=g<<5;}return Math.abs(g)%7;}
