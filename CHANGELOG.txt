@@ -1,3 +1,8 @@
+v1.17.2 - Clearer minimap
+- Enlarged overview to 300 pixels with a black background.
+- Larger static base markers; airbases have horizontal strokes and helicopter bases vertical strokes.
+- Removed troops and camera rectangle from the overview; renderer accepts highway segments when present.
+
 v1.17.1 - Sparse river crossings
 - Increased minimum bridge spacing; reported dense seeds now have 7 crossings rather than 23-26.
 - Kept longer rivers free of a fixed bridge count cap.

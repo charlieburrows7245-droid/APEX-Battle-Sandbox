@@ -149,3 +149,6 @@ header{height:46px;padding:0 12px;background:#161b18eF}.brand{font-size:17px}.br
 
 /* Native factory cells: full-size artwork and readable duration labels. */
 #factory-hover-menu{transform:none}#factory-hover-icons img{width:60px;height:40px;object-fit:contain}#factory-hover-icons .factory-hours-label{top:8px;font:bold 20px/22px Tahoma,Arial,sans-serif;text-shadow:2px 2px 1px #000,-1px -1px 1px #000}
+
+/* Larger square overview with sharp, readable base symbols. */
+#mini{width:min(300px,36vw,40vh);height:min(300px,36vw,40vh);background:#000;image-rendering:pixelated;border:1px solid #8d927e}
