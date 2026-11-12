@@ -3,19 +3,19 @@ const $=id=>document.getElementById(id),canvas=$('game'),mini=$('mini'),mc=mini.
 let ctx=canvas.getContext('2d',{alpha:false});
 const MAP_LIMIT=1200,MAP_STEP_X=90,MAP_STEP_Y=90,WORLD_WIDTH=MAP_LIMIT*MAP_STEP_X,WORLD_HEIGHT=MAP_LIMIT*MAP_STEP_Y;
 function mapCoordinates(p){return{x:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.x/MAP_STEP_X))),y:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.y/MAP_STEP_Y)))}}
-const TYPES={tank:{name:'Type 99',icon:'▰',speed:150,dw5Speed:2,range:165,damage:19,hp:160},aa:{name:'TanSAM',icon:'▤',speed:75,dw5Speed:1,range:240,damage:15,hp:110},heli:{name:'Apache',icon:'✣',speed:112,range:180,damage:16,hp:100},jet:{name:'J-10',icon:'✈',speed:170,range:210,damage:22,hp:100},base:{name:'Military base',icon:'▦',speed:0,range:210,damage:12,hp:1000},airbase:{name:'Airbase',icon:'⊞',speed:0,range:210,damage:12,hp:800}};
+const TYPES={tank:{name:'Type 99',icon:'▰',speed:150,dw5Speed:2,range:165,damage:19,hp:160},aa:{name:'TanSAM',icon:'▤',speed:75,dw5Speed:1,range:240,damage:15,hp:110},heli:{name:'Apache',icon:'✣',speed:112,range:180,damage:16,hp:100},jet:{name:'J-10',icon:'✈',speed:170,range:210,damage:22,hp:100},raptor:{name:'F-22C Raptor',icon:'✈',speed:8*75,range:12*90,damage:50,hp:65000},base:{name:'Military base',icon:'▦',speed:0,range:210,damage:12,hp:1000},airbase:{name:'Airbase',icon:'⊞',speed:0,range:210,damage:12,hp:800}};
 let units=[],selected=new Set(),team=0,tool='select',paused=false,speed=1,zoom=.65,cam={x:1200,y:800},W=0,H=0,drag=null,mouse={x:0,y:0},shots=[],uid=0,last=0,statsTimer=0;
 const colors=['#65ff38','#ff3535','#00cfff'];
 function notice(t){$('notice').textContent=t}
 function setTool(t){tool=t;document.querySelectorAll('[data-type]').forEach(b=>b.classList.toggle('active',b.dataset.type===t));$('select').classList.toggle('active',t==='select');canvas.style.cursor=t==='select'?'default':'crosshair'}
-for(const [id,t] of Object.entries(TYPES)){if(t.speed&&id!=='heli')continue;let b=document.createElement('button');b.dataset.type=id;b.innerHTML=`<span>${t.icon}</span>${id==='heli'?'Apache helicopter':t.name}`;b.onclick=()=>{setTool(id);notice('Click the battlefield to place '+t.name)};$('catalog').append(b)}
+for(const [id,t] of Object.entries(TYPES)){if(t.speed&&!['heli','raptor'].includes(id))continue;let b=document.createElement('button');b.dataset.type=id;b.innerHTML=`<span>${t.icon}</span>${id==='heli'?'Apache helicopter':t.name}`;b.onclick=()=>{setTool(id);notice('Click the battlefield to place '+t.name)};$('catalog').append(b)}
 function add(type,x,y,side){let t=TYPES[type];units.push({id:++uid,type,x,y,team:side,hp:t.hp,factoryLevel:1,militaryCentralLevel:0,wallLevel:2,defenceGuns:2,angle:side?Math.PI:0,cool:Math.random(),target:null})}
 
 const GROUP_SIZE=49,PLAYER_TEAM=0;
 const DW5_FORMATION_X=[0,1,1,-1,-1,0,2,0,-2,2,2,-2,-2,1,1,-1,-1,3,3,-3,-3,0,4,0,-4,-3,3,-3,3,-4,4,-4,4,2,-2,-2,2,5,-5,5,-5,1,-1,-1,1,0,6,0,-6];
 const DW5_FORMATION_Y=[0,-1,1,1,-1,-2,0,2,0,-2,2,2,-2,-3,3,-3,3,-1,1,-1,1,-4,0,4,0,-3,3,3,-3,2,2,-2,-2,4,-4,4,-4,1,1,-1,-1,5,-5,5,-5,6,0,-6,0];
 let nextGroupId=0;
-function troopSpacing(type){return {tank:48,aa:55,heli:60,jet:85}[type]??48;}
+function troopSpacing(type){return {tank:48,aa:55,heli:60,jet:85,raptor:85}[type]??48;}
 function formationOffset(type,index){return{x:DW5_FORMATION_X[index%49]*troopSpacing(type),y:DW5_FORMATION_Y[index%49]*troopSpacing(type)/3};}
 function friendlyTeams(a,b){return a===b||(a===0&&b===2)||(a===2&&b===0);}
 function troopRelationColor(side){return side===PLAYER_TEAM?'#65ff38':friendlyTeams(side,PLAYER_TEAM)?'#00cfff':'#ff3535';}
@@ -120,7 +120,7 @@ function actualBase(u){syncBaseDefenceHealth(u);
  ctx.drawImage(cached.surface,u.x-900,u.y-500);ctx.save();ctx.translate(u.x,u.y);drawStarterDefences(u,u.type==='airbase');ctx.restore();drawRotatingHeads(u);drawFactoryActivity(u);
  if(selected.has(u.id)){ctx.save();ctx.translate(u.x,u.y);ctx.strokeStyle='#d8f38e';ctx.lineWidth=2/zoom;ctx.beginPath();ctx.ellipse(0,0,705,225,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#162013';ctx.fillRect(-50,-277,100,4);ctx.fillStyle=colors[u.team];ctx.fillRect(-50,-277,100*u.hp/baseMaxHealth(u),4);ctx.restore();}
 }
-const nativeTroops={tank:{id:27,raise:-9,pivot:2},aa:{id:43,raise:-13,pivot:12},heli:{id:13,air:true},jet:{id:58,air:true}};
+const nativeTroops={tank:{id:27,raise:-9,pivot:2},aa:{id:43,raise:-13,pivot:12},heli:{id:13,air:true},jet:{id:58,air:true},raptor:{id:58,air:true}};
 const troopArt={};for(const def of Object.values(nativeTroops)){for(const layer of ['a','b']){const im=new Image();im.src='assets/gi/panzer'+def.id+layer+'.png';troopArt[def.id+layer]=im}}const apacheRotor=new Image();apacheRotor.src='assets/i/rotor4er.png';
 function spriteFrame(im,frame,x,y,count=72){if(!im?.complete||!im.naturalWidth)return;const fw=im.naturalWidth/count;ctx.drawImage(im,fw*frame,0,fw,im.naturalHeight,x-fw/2,y-im.naturalHeight/2,fw,im.naturalHeight)}
 // Player labels are drawn separately from cached base artwork, so they remain
@@ -487,7 +487,8 @@ const COMBAT_STATS={
  tank:{range:8,firepower:1000,armor:107,sound:'cannon'},
  aa:{range:10,firepower:40,armor:75,special:1000,sound:'rak'},
  heli:{range:10,firepower:100,armor:30,special:2500,sound:'rak'},
- jet:{range:12,firepower:1000,armor:3000,sound:'cannon'}
+ jet:{range:12,firepower:1000,armor:3000,sound:'cannon'},
+ raptor:{range:12,sight:21,firepower:50,armor:15000,special:1250,sound:'cannon'}
 };
 let showWeaponRanges=true,combatClock=0;
 const combatCooldowns=new Map(),combatFiredAt=new WeakMap();
@@ -510,14 +511,18 @@ function weaponRange(group,target=null){
  if(group.type==='aa'&&target?.type==='heli')multiplier=3;
  const firing=target?.firing;
  if(firing&&['tank','aa','heli'].includes(group.type))multiplier=Math.max(multiplier,2);
- if(firing&&group.type==='jet'&&['heli','jet'].includes(target?.type))multiplier=3;
+ if(firing&&['jet','raptor'].includes(group.type)&&['heli','jet','raptor'].includes(target?.type))multiplier=3;
  return radius*multiplier;
 }
 function shotDamage(attacker,target){
- const stat=COMBAT_STATS[attacker.type];if(!stat)return TYPES[attacker.type].damage;
+ const stat=COMBAT_STATS[attacker.type];if(!stat){
+  if(!TYPES[attacker.type].speed&&COMBAT_STATS[target.type])return 75000/COMBAT_STATS[target.type].armor;
+  return TYPES[attacker.type].damage;
+ }
  let firepower=stat.firepower;
  if(attacker.type==='aa'&&target.type==='heli')firepower=stat.special;
- if(attacker.type==='heli'&&!['heli','jet'].includes(target.type))firepower=stat.special;
+ if(attacker.type==='heli'&&!['heli','jet','raptor'].includes(target.type))firepower=stat.special;
+ if(attacker.type==='raptor'&&['heli','jet','raptor'].includes(target.type))firepower=stat.special;
  // Troop armour uses DW5 stats; base damage normalization remains a sandbox rule.
  if(!TYPES[target.type].speed){
   // DW5 Wall test: 47 MRHs produced 353 VF/tick, 49 more produced 367.
