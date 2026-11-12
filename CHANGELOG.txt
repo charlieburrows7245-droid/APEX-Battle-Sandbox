@@ -1,3 +1,8 @@
+v1.17.3 - Base border buffer and minimap polish
+- All generated base footprints stay at least 100 map units inside every edge.
+- Replaced beige unclaimed markers with DW5-style blue; retained clear airbase and helicopter symbols.
+- Aligned bridge markers with the river channel and softened river strokes.
+
 v1.17.2 - Clearer minimap
 - Enlarged overview to 300 pixels with a black background.
 - Larger static base markers; airbases have horizontal strokes and helicopter bases vertical strokes.

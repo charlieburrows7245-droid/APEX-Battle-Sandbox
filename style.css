@@ -152,3 +152,5 @@ header{height:46px;padding:0 12px;background:#161b18eF}.brand{font-size:17px}.br
 
 /* Larger square overview with sharp, readable base symbols. */
 #mini{width:min(300px,36vw,40vh);height:min(300px,36vw,40vh);background:#000;image-rendering:pixelated;border:1px solid #8d927e}
+
+#mini{border:1px solid #5c665c;box-shadow:0 3px 14px #0008}

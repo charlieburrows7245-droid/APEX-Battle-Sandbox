@@ -24,3 +24,5 @@ The DW5 client decodes bridge letters q/r/s/t without a count limit. APEX now pl
 Generate map replaces the battlefield. Save/Load includes the terrain seed. At distant zoom, bases use markers instead of allocating 500 full-resolution base surfaces.
 
 Version 1.17.1 increases projected crossing separation from 2,200–4,600 to 11,000–20,000 world units. This reduces crowded seeds 1416/1417 from 26/23 to 7/7 crossings. Regression coverage verifies minimum separation across 100 seeds and retains support for 17 or more crossings on long rivers.
+
+Version 1.17.3 reserves a 100-map-unit border for generated bases on every edge, including their 1500x500 terrain footprints. Existing saved scenarios retain their saved base positions; generate a fresh map to apply placement changes.

@@ -8,6 +8,8 @@
   let state=(Number(seed)^0xa531e92d)>>>0;
   const random=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
   const cliffs=[],bases=[];
+  // 100 map units on every edge, plus the base terrain footprint.
+  const marginX=width*100/1200+750,marginY=height*100/1200+250;
   // Native Pi convention: byte-valued horizontal positions, one row per
   // two map units, cycling through hinder0..4. Avoid painting over water.
   const nearWater=(x,y,rx,ry)=>river.some(p=>Math.abs(p.x-x)<rx&&Math.abs(p.y-y)<ry);
@@ -19,7 +21,7 @@
   for(let index=0;index<500;index++){
    let point=null;
    for(let attempt=0;attempt<100000;attempt++){
-    const x=1200+random()*(width-2400),y=900+random()*(height-1800);
+    const x=marginX+random()*(width-2*marginX),y=marginY+random()*(height-2*marginY);
     if(nearWater(x,y,2000,1000))continue;
     if(cliffs.some(c=>Math.abs(c.x-x)<1450&&Math.abs(c.y-y)<600))continue;
     if(bases.some(b=>Math.abs(b.x-x)<2200&&Math.abs(b.y-y)<950))continue;
