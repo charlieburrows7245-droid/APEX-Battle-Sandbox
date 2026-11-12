@@ -609,8 +609,8 @@ function combatGroups(){
 function weaponRange(group,target=null){
  const stat=COMBAT_STATS[group.type],first=group.members[0];
  let radius=stat?stat.range*90:TYPES[group.type].range;
- // Base defence guns: 12 DW5 map units normally, 24 with Long Range.
- if(!stat)return 12*90*((first.maxUpgraded||first.specialUpgrades?.range)?2:1);
+ // Base defence guns: 12 DW5 map units normally, 20 with Long Range.
+ if(!stat)return 90*((first.maxUpgraded||first.specialUpgrades?.range)?20:12);
  let multiplier=1;
  if(group.type==='aa'&&target?.type==='heli')multiplier=3;
  const firing=target?.firing;
@@ -643,7 +643,7 @@ function baseTargetUnit(base,groups){
  const owner=base.members[0],radius=weaponRange(base);
  const longRange=!!(owner.maxUpgraded||owner.specialUpgrades?.range);
  // Normal defence guns cover the front (lower/southern side of the base).
- // Long Range enables full-circle targeting; the 12/24-unit distances stay unchanged.
+ // Long Range enables full-circle targeting; the 12/20-unit distances stay unchanged.
  const frontY=owner.y+(owner.type==='airbase'?99:76);
  const candidates=groups.filter(g=>TYPES[g.type].speed&&!friendlyTeams(base.team,g.team))
   .flatMap(g=>g.members.filter(u=>u.hp>0&&(longRange||u.y>=frontY)&&Math.hypot(u.x-base.x,(u.y-base.y)*3)<=radius));
