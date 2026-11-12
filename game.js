@@ -672,7 +672,10 @@ function applyAttackerVolley(group,amount,attackerKey){
  const victim=group.members.filter(u=>u.hp>0).reduce((a,b)=>
   !a||(b.groupSlot??0)>(a.groupSlot??0)?b:a,null);
  if(!victim)return;
- if(!canKill){victim.hp=Math.max(0.000001,victim.hp-amount);return;}
+ // Do not leave a defender at 0.000001 HP while this attacker is
+ // casualty-locked. That caused the visible 4301/4900 and 3601/4900
+ // Apache divisions: one Apache appeared as 1 HP instead of dying.
+ if(!canKill)return;
  // Correct near-lethal rounding for Apache-vs-Apache volleys: 99 damage
  // against a full 100 HP Apache should finish the unit, not leave 1 HP.
  const lethalTolerance=group.type==='heli'&&attackerKey.startsWith('g')?1:0;
