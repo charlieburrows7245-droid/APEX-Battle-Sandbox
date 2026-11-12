@@ -690,15 +690,30 @@ function divisionObstacleBoxes(motion,members){
  const offsets=members.map(v=>formationOffset(v.type,v.groupSlot??0));
  const left=Math.min(0,...offsets.map(p=>p.x))-24,right=Math.max(0,...offsets.map(p=>p.x))+24;
  const top=Math.min(0,...offsets.map(p=>p.y*3))-24,bottom=Math.max(0,...offsets.map(p=>p.y*3))+24;
- return troopGroups(units.filter(v=>v.hp>0&&TYPES[v.type]?.speed&&v.groupId!==members[0].groupId&&!!nativeTroops[v.type]?.air===air))
- .filter(group=>group.every(v=>!v.formationOrder&&!v.target))
- .map(group=>{
+ const groups=troopGroups(units.filter(v=>v.hp>0&&TYPES[v.type]?.speed&&v.groupId!==members[0].groupId&&!!nativeTroops[v.type]?.air===air));
+ const boxes=[];
+ for(const group of groups){
   const radius=v=>Math.min(38,Math.max(18,troopSpacing(v.type)*.35));
-  return{l:Math.min(...group.map(v=>v.x-radius(v)))-right,
-         r:Math.max(...group.map(v=>v.x+radius(v)))-left,
-         t:Math.min(...group.map(v=>v.y*3-radius(v)))-bottom,
-         b:Math.max(...group.map(v=>v.y*3+radius(v)))-top};
- });
+  const box={l:Math.min(...group.map(v=>v.x-radius(v)))-right,
+             r:Math.max(...group.map(v=>v.x+radius(v)))-left,
+             t:Math.min(...group.map(v=>v.y*3-radius(v)))-bottom,
+             b:Math.max(...group.map(v=>v.y*3+radius(v)))-top};
+  boxes.push(box);
+  // Reserve a short swept corridor in front of a moving formation.
+  // This avoids head-on collisions even when both divisions have orders.
+  const other=divisionMotion.get(group[0].groupId);
+  if(other?.target){
+   const dx=other.target.x-other.x,dy=(other.target.y-other.y)*3;
+   const length=Math.hypot(dx,dy);
+   if(length>1){
+    const advance=Math.min(length,Math.max(0,TYPES[group[0].type].speed)*.65);
+    const vx=dx/length*advance,vy=dy/length*advance;
+    boxes.push({l:Math.min(box.l,box.l+vx),r:Math.max(box.r,box.r+vx),
+                t:Math.min(box.t,box.t+vy),b:Math.max(box.b,box.b+vy)});
+   }
+  }
+ }
+ return boxes;
 }
 function divisionSegmentClear(a,b,boxes){
  for(const box of boxes){
