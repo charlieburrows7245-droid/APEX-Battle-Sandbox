@@ -606,12 +606,60 @@ function generateRiverPaths(){
  }
  riverPaths=routes;
 }
+
+// DW5 river replay: decode its server-provided base64-like nibble stream.
+// This is a map-data importer, not a substitute for DW5's server-side generator.
+function decodeDw5RiverNibbles(encoded){
+ const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+ const bytes=[];let bits=0,buffer=0;
+ for(const ch of encoded.replace(/\\s/g,'')){
+  if(ch==='=')break;
+  const value=alphabet.indexOf(ch);if(value<0)throw Error('Invalid DW5 river character');
+  buffer=(buffer<<6)|value;bits+=6;
+  while(bits>=4){bits-=4;bytes.push((buffer>>bits)&15);buffer&=(1<<bits)-1;}
+ }
+ return bytes;
+}
+function importDw5River(encoded){
+ const data=decodeDw5RiverNibbles(encoded),points=[];
+ let x=0,y=0,angle=0,started=false;
+ // The original DW5 seegen decoder uses 10 header nibbles plus two metadata
+ // nibbles at the beginning of a river stream, then direction nibbles.
+ for(let i=0;i<data.length;i++){
+  if(!started){
+   if(i+11>=data.length)break;
+   x=(4096*data[i++]+256*data[i++]+16*data[i++]+data[i++])*4;
+   y=(4096*data[i++]+256*data[i++]+16*data[i++]+data[i++])*4;
+   angle=(16*data[i++]*5+5*data[i++]);i+=2;started=true;
+  }
+  const turn=data[i];if(turn===3)angle-=5;if(turn===5)angle+=5;
+  angle=(angle+360)%360;
+  x+=300*Math.sin(angle*Math.PI/180);
+  y-=300*Math.cos(angle*Math.PI/180);
+  points.push({x,y:y/2,angle});
+ }
+ if(!points.length)throw Error('No DW5 river segments decoded');
+ // Preserve segment positions and headings for later sprite-exact rendering.
+ return points;
+}
+const importedDw5River=localStorage.getItem('apexDw5River');
+let importedRiverSegments=[];
+try{if(importedDw5River)importedRiverSegments=importDw5River(importedDw5River)}catch(_){localStorage.removeItem('apexDw5River')}
+window.apexImportDw5River=function(encoded){
+ const segments=importDw5River(encoded);
+ importedRiverSegments=segments;
+ localStorage.setItem('apexDw5River',encoded);
+ terrainRiversEnabled=false;
+ localStorage.setItem('apexTerrainRivers','false');
+ notice('Imported '+segments.length+' DW5 river segments');
+ return segments.length;
+};
 function drawGeneratedRivers(){
- if(!terrainRiversEnabled)return;
+ if(!terrainRiversEnabled&&!importedRiverSegments.length)return;
  ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);
  ctx.beginPath();ctx.rect(0,0,WORLD_WIDTH,WORLD_HEIGHT);ctx.clip();
  ctx.lineJoin='round';ctx.lineCap='round';
- for(const river of riverPaths){
+ for(const river of (importedRiverSegments.length?[]:riverPaths)){
   const p=river.points;ctx.beginPath();ctx.moveTo(p[0].x,p[0].y);
   for(let i=1;i<p.length-1;i++)ctx.quadraticCurveTo(p[i].x,p[i].y,(p[i].x+p[i+1].x)/2,(p[i].y+p[i+1].y)/2);
   ctx.lineTo(p[p.length-1].x,p[p.length-1].y);
@@ -620,7 +668,8 @@ function drawGeneratedRivers(){
   }
   ctx.strokeStyle='rgba(141,174,183,.40)';ctx.lineWidth=1.5;ctx.stroke();
  }
- for(const river of riverPaths)for(let i=0;i<river.bridges.length;i++){
+ for(const segment of importedRiverSegments){ctx.save();ctx.translate(segment.x,segment.y);ctx.rotate(segment.angle*Math.PI/180);ctx.fillStyle='#274d60';ctx.fillRect(-12,-145,24,290);ctx.strokeStyle='#a5a08b';ctx.lineWidth=3;ctx.strokeRect(-12,-145,24,290);ctx.restore();}
+ for(const river of (importedRiverSegments.length?[]:riverPaths))for(let i=0;i<river.bridges.length;i++){
   const bridge=river.bridges[i];ctx.save();ctx.translate(bridge.x,bridge.y);ctx.rotate(bridge.angle);
   const length=river.width+38;
   const sprite=bridgeSprites[i%bridgeSprites.length];
@@ -638,7 +687,7 @@ function drawGeneratedRivers(){
 generateRiverPaths();
 const terrainButton=document.getElementById('terrain-generate');
 if(terrainButton)terrainButton.addEventListener('click',()=>{
- terrainSeed=(terrainSeed+1)>>>0;terrainRiversEnabled=true;
+ importedRiverSegments=[];localStorage.removeItem('apexDw5River');terrainSeed=(terrainSeed+1)>>>0;terrainRiversEnabled=true;
  localStorage.setItem('apexTerrainSeed',String(terrainSeed));
  localStorage.setItem('apexTerrainRivers','true');
  generateRiverPaths();notice('River and bridge preview seed '+terrainSeed+' (visual only)');
