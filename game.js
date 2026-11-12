@@ -113,13 +113,13 @@ function spriteFrame(im,frame,x,y,count=72){if(!im?.complete||!im.naturalWidth)r
 // readable at different zoom levels without invalidating factory/base caches.
 const BASE_PLAYER_NAMES=['Player','Opponent'];
 function drawBasePlayerName(u){
- // Anchor owner labels over the lower defensive entrance, as in the
- // DW5 airbase reference, rather than over the aircraft hangar.
+ // DW5's 'g' base, configuration 3, positions the owner at
+ // (baseX - 100, baseY - 110). APEX's base origin is u.x/u.y.
+ // Keep the military label unchanged until its DW5 branch is confirmed.
  const label=BASE_PLAYER_NAMES[u.team]??'Player';
  const air=u.type==='airbase';
- const entrance=baseEntrancePoint(u);
- const x=entrance.x+(air?0:0);
- const y=entrance.y-(air?105:110);
+ const x=air?u.x-100:baseEntrancePoint(u).x;
+ const y=air?u.y-110:baseEntrancePoint(u).y-110;
  ctx.save();
  ctx.font='24px Verdana, sans-serif';
  ctx.textAlign='center';
