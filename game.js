@@ -568,8 +568,58 @@ function drawTerrainView(){
  }
  ctx.restore();
 }
+
+/* Seeded terrain prototype: persistent river geometry, separate from the ground texture.
+   Rivers are visual-only until DW5 crossing/pathfinding rules are verified. */
+let terrainSeed=Number(localStorage.getItem('apexTerrainSeed')||'42')||42;
+let terrainRiversEnabled=localStorage.getItem('apexTerrainRivers')==='true';
+let riverPaths=[];
+function generateRiverPaths(){
+ let state=terrainSeed>>>0;
+ const random=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
+ riverPaths=[];
+ const count=2+Math.floor(random()*2);
+ for(let n=0;n<count;n++){
+  const horizontal=random()>.5,points=[],width=(170+random()*190);
+  const base=(.20+random()*.60)*(horizontal?WORLD_HEIGHT:WORLD_WIDTH);
+  const phase=random()*Math.PI*2,frequency=1.3+random()*2.0;
+  for(let i=0;i<=64;i++){
+   const t=i/64,along=t*(horizontal?WORLD_WIDTH:WORLD_HEIGHT);
+   const cross=base+Math.sin(t*Math.PI*2*frequency+phase)*width*2.8+
+      Math.sin(t*Math.PI*5+phase*.73)*width*.8;
+   points.push(horizontal?{x:along,y:cross}:{x:cross,y:along});
+  }
+  riverPaths.push({points,width});
+ }
+}
+function drawGeneratedRivers(){
+ if(!terrainRiversEnabled)return;
+ ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);
+ ctx.beginPath();ctx.rect(0,0,WORLD_WIDTH,WORLD_HEIGHT);ctx.clip();
+ ctx.lineJoin='round';ctx.lineCap='round';
+ for(const river of riverPaths){
+  const p=river.points;
+  ctx.beginPath();ctx.moveTo(p[0].x,p[0].y);
+  for(let i=1;i<p.length-1;i++)ctx.quadraticCurveTo(p[i].x,p[i].y,(p[i].x+p[i+1].x)/2,(p[i].y+p[i+1].y)/2);
+  ctx.lineTo(p[p.length-1].x,p[p.length-1].y);
+  for(const [extra,color] of [[125,'rgba(79,76,44,.65)'],[60,'#9b9670'],[0,'#426b76']]){
+   ctx.strokeStyle=color;ctx.lineWidth=river.width+extra;ctx.stroke();
+  }
+  ctx.strokeStyle='rgba(140,189,194,.22)';ctx.lineWidth=river.width*.18;ctx.stroke();
+ }
+ ctx.restore();
+}
+generateRiverPaths();
+const terrainButton=document.getElementById('terrain-generate');
+if(terrainButton)terrainButton.addEventListener('click',()=>{
+ terrainSeed=(terrainSeed+1)>>>0;terrainRiversEnabled=true;
+ localStorage.setItem('apexTerrainSeed',String(terrainSeed));
+ localStorage.setItem('apexTerrainRivers','true');
+ generateRiverPaths();notice('Generated terrain seed '+terrainSeed+' (rivers visual-only)');
+});
+
 let fpsFrames=0,fpsWindow=0,lastMini=0,groundPattern=null;
-function frame(now){fpsFrames++;if(now-fpsWindow>=500){$('fps').textContent='FPS '+Math.round(fpsFrames*1000/(now-fpsWindow));fpsFrames=0;fpsWindow=now;}let dt=Math.min(.05,(now-last)/1000||0);last=now;if(!paused)update(dt*speed);ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.fillStyle='#253021';ctx.fillRect(0,0,W,H);drawTerrainView();ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);ctx.strokeStyle='#dce4b609';ctx.lineWidth=1;for(let x=Math.max(0,Math.floor((cam.x-W/(2*zoom))/900)*900);x<=Math.min(WORLD_WIDTH,cam.x+W/(2*zoom));x+=900){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,WORLD_HEIGHT);ctx.stroke()}for(let y=Math.max(0,Math.floor((cam.y-H/(2*zoom))/900)*900);y<=Math.min(WORLD_HEIGHT,cam.y+H/(2*zoom));y+=900){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(WORLD_WIDTH,y);ctx.stroke()}const visible=u=>Math.abs(u.x-cam.x)<W/(2*zoom)+(TYPES[u.type].speed?80:900)&&Math.abs(u.y-cam.y)<H/(2*zoom)+(TYPES[u.type].speed?80:500);for(const u of units)if(!TYPES[u.type].speed&&visible(u))drawUnit(u);// Paint ground vehicles first, helicopters above them, then fixed-wing
+function frame(now){fpsFrames++;if(now-fpsWindow>=500){$('fps').textContent='FPS '+Math.round(fpsFrames*1000/(now-fpsWindow));fpsFrames=0;fpsWindow=now;}let dt=Math.min(.05,(now-last)/1000||0);last=now;if(!paused)update(dt*speed);ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.fillStyle='#253021';ctx.fillRect(0,0,W,H);drawTerrainView();drawGeneratedRivers();ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);ctx.strokeStyle='#dce4b609';ctx.lineWidth=1;for(let x=Math.max(0,Math.floor((cam.x-W/(2*zoom))/900)*900);x<=Math.min(WORLD_WIDTH,cam.x+W/(2*zoom));x+=900){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,WORLD_HEIGHT);ctx.stroke()}for(let y=Math.max(0,Math.floor((cam.y-H/(2*zoom))/900)*900);y<=Math.min(WORLD_HEIGHT,cam.y+H/(2*zoom));y+=900){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(WORLD_WIDTH,y);ctx.stroke()}const visible=u=>Math.abs(u.x-cam.x)<W/(2*zoom)+(TYPES[u.type].speed?80:900)&&Math.abs(u.y-cam.y)<H/(2*zoom)+(TYPES[u.type].speed?80:500);for(const u of units)if(!TYPES[u.type].speed&&visible(u))drawUnit(u);// Paint ground vehicles first, helicopters above them, then fixed-wing
 // aircraft above helicopters. Airborne units do not participate in collision.
 for(const u of units)if(TYPES[u.type].speed&&!nativeTroops[u.type]?.air&&visible(u))drawUnit(u);
 for(const u of units)if(TYPES[u.type].speed&&u.type==='heli'&&visible(u))drawUnit(u);
