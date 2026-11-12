@@ -25,6 +25,10 @@ updateDivisionCombat(.02);targetGroup=combatGroups()[0];applyGroupDamage(targetG
 assert.equal(groupHealthSummary(units.filter(u=>u.hp>0)).maximum,49*160,'capacity survives casualties');
 reset(group('tank',0,0,0,1,49));for(let second=0;second<10;second++){updateDivisionCombat(1);targetGroup=combatGroups()[0];applyGroupDamage(targetGroup,1e9);}assert.equal(units.filter(u=>u.hp>0).length,39,'ten seconds: at most ten casualties');
 reset([...group('tank',0,0,0,1,49),...group('tank',700,0,1,2,49),...group('tank',710,0,1,3,49)]);updateDivisionCombat(.01);assert.equal(units.filter(u=>u.team===0).length,47,'two lethal attacking divisions can each kill one defender');
+reset(group('heli',0,0,0,1,49));targetGroup=combatGroups()[0];
+applyAttackerVolley(targetGroup,99,'gApache');assert.equal(units.filter(u=>u.hp>0).length,48,'99 damage kills full-health 100 HP Apache');
+reset(group('heli',0,0,0,1,49));targetGroup=combatGroups()[0];
+applyAttackerVolley(targetGroup,98,'gApache');assert.equal(units.filter(u=>u.hp>0).length,49,'98 damage does not kill full-health Apache');
 reset(group('tank',0,0,0,1,49));targetGroup=combatGroups()[0];
 applyAttackerVolley(targetGroup,1e9,'gA');applyAttackerVolley(targetGroup,1e9,'gB');
 assert.equal(units.filter(u=>u.hp>0).length,47,'two attackers may cause two casualties in one tick');
