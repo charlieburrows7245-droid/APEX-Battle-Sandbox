@@ -610,7 +610,7 @@ const riverGenerateButton=document.getElementById('terrain-generate');
 if(riverGenerateButton)riverGenerateButton.addEventListener('click',()=>{
  riverSeed=(riverSeed+1)>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));
  importedRiverSegments=[];localStorage.removeItem('apexDw5River');generateDw5StyleRivers();
- notice('Generated '+riverLayouts.length+' rivers · seed '+riverSeed);
+ notice('Generated river · seed '+riverSeed);
 });
 function activeRiverPieces(){return importedRiverSegments.length?importedRiverSegments:generatedRiverSegments;}
 function drawGeneratedRivers(){

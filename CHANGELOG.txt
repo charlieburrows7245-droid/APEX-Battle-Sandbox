@@ -1,3 +1,7 @@
+v1.16.2
+- Exactly one river with varied entry/exit edges, including same-edge U-shaped bends.
+- Removed the forced top-to-bottom direction and added seed variation.
+
 v1.16
 - Native DW5 5 river JPEG/PNG tiles and XOR bank blending replace thin painted lines.
 - Correct letter-coded de4 importer with explicit flusspos origin.
