@@ -642,22 +642,22 @@ function shotDamage(attacker,target){
 function baseTargetUnit(base,groups){
  const owner=base.members[0],radius=weaponRange(base);
  const longRange=!!(owner.maxUpgraded||owner.specialUpgrades?.range);
- // Normal defence guns cover the front (lower/southern side of the base).
- // Long Range enables full-circle targeting; the 12/20-unit distances stay unchanged.
  const frontY=owner.y+(owner.type==='airbase'?99:76);
- const candidates=groups.filter(g=>TYPES[g.type].speed&&!friendlyTeams(base.team,g.team))
-  .flatMap(g=>g.members.filter(u=>u.hp>0&&(longRange||u.y>=frontY)&&Math.hypot(u.x-base.x,(u.y-base.y)*3)<=radius));
- if(!candidates.length){owner.baseTargetId=null;owner.baseTargetGroupId=null;return null;}
- // Never spread base damage across a division: stick to its current victim.
- let target=candidates.find(u=>u.id===owner.baseTargetId);
- if(target)return target;
- const sameDivision=candidates.filter(u=>u.groupId===owner.baseTargetGroupId);
- if(sameDivision.length){
-  // After a kill, attack the next living unit of the same division.
-  target=sameDivision.reduce((best,u)=>!best||(u.groupSlot??0)>(best.groupSlot??0)?u:best,null);
- }else{
-  // First acquisition: the first/nearest individual entering base range.
-  target=candidates.reduce((best,u)=>!best||Math.hypot(u.x-base.x,(u.y-base.y)*3)<Math.hypot(best.x-base.x,(best.y-base.y)*3)?u:best,null);
+ // A division has one invisible targeting centre. Individual members at the
+ // perimeter do not independently enable/disable the whole division's fire.
+ const eligible=groups.filter(g=>TYPES[g.type].speed&&!friendlyTeams(base.team,g.team)&&g.members.some(u=>u.hp>0))
+  .filter(g=>(longRange||g.y>=frontY)&&Math.hypot(g.x-base.x,(g.y-base.y)*3)<=radius);
+ if(!eligible.length){owner.baseTargetId=null;owner.baseTargetGroupId=null;return null;}
+ // Keep the same division locked while its centre remains in range.
+ const locked=eligible.find(g=>g.members.some(u=>u.groupId===owner.baseTargetGroupId));
+ const chosen=locked??eligible.reduce((best,g)=>!best||Math.hypot(g.x-base.x,(g.y-base.y)*3)<Math.hypot(best.x-base.x,(best.y-base.y)*3)?g:best,null);
+ const alive=chosen.members.filter(u=>u.hp>0);
+ // Continue shooting a living locked victim; after a casualty, select the
+ // exposed edge closest to the defensive gun line (not the highest slot ID).
+ let target=alive.find(u=>u.id===owner.baseTargetId);
+ if(!target){
+  const gunX=owner.x+(owner.type==='airbase'?510:450),gunY=owner.y+(owner.type==='airbase'?150:130);
+  target=alive.reduce((best,u)=>!best||Math.hypot(u.x-gunX,(u.y-gunY)*3)<Math.hypot(best.x-gunX,(best.y-gunY)*3)?u:best,null);
  }
  owner.baseTargetId=target.id;owner.baseTargetGroupId=target.groupId;
  return target;
