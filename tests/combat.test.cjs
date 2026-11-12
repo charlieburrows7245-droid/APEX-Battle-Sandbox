@@ -28,6 +28,13 @@ reset([...group('tank',0,0,0,1,49),...group('tank',700,0,1,2,49),...group('tank'
 reset(group('heli',0,0,0,1,49));targetGroup=combatGroups()[0];
 applyAttackerVolley(targetGroup,99,'gApache');assert.equal(units.filter(u=>u.hp>0).length,48,'99 damage kills full-health 100 HP Apache');
 reset(group('heli',0,0,0,1,49));targetGroup=combatGroups()[0];
+applyAttackerVolley(targetGroup,160,'gApache');
+assert.equal(units.filter(u=>u.hp>0).length,48,'first lethal Apache volley kills exactly one');
+const remainingHp=units.reduce((sum,u)=>sum+u.hp,0);
+applyAttackerVolley(targetGroup,160,'gApache');
+assert.equal(units.reduce((sum,u)=>sum+u.hp,0),remainingHp,'locked attacker does not strand next Apache at 1 HP');
+assert.equal(units.filter(u=>u.hp>0).length,48,'second same-second volley cannot kill another');
+reset(group('heli',0,0,0,1,49));targetGroup=combatGroups()[0];
 applyAttackerVolley(targetGroup,98,'gApache');assert.equal(units.filter(u=>u.hp>0).length,49,'98 damage does not kill full-health Apache');
 reset(group('tank',0,0,0,1,49));targetGroup=combatGroups()[0];
 applyAttackerVolley(targetGroup,1e9,'gA');applyAttackerVolley(targetGroup,1e9,'gB');
