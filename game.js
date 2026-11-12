@@ -673,7 +673,11 @@ function applyAttackerVolley(group,amount,attackerKey){
   !a||(b.groupSlot??0)>(a.groupSlot??0)?b:a,null);
  if(!victim)return;
  if(!canKill){victim.hp=Math.max(0.000001,victim.hp-amount);return;}
+ // Correct near-lethal rounding for Apache-vs-Apache volleys: 99 damage
+ // against a full 100 HP Apache should finish the unit, not leave 1 HP.
+ const lethalTolerance=group.type==='heli'&&attackerKey.startsWith('g')?1:0;
  victim.hp=Math.max(0,victim.hp-amount);
+ if(victim.hp>0&&victim.hp<=lethalTolerance&&amount>=victim.hp)victim.hp=0;
  if(victim.hp===0){attackerCasualtyTimes.set(key,combatClock);queueCombatSound('explo',victim.x,victim.y);}
 }
 function drawGroupHealth(members,x,y){
