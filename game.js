@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id),canvas=$('game'),mini=$('mini'),mc=mini.getContext('2d');
 let ctx=canvas.getContext('2d',{alpha:false});
-const MAP_LIMIT=1200,MAP_STEP_X=90,MAP_STEP_Y=90,WORLD_WIDTH=MAP_LIMIT*MAP_STEP_X,WORLD_HEIGHT=MAP_LIMIT*MAP_STEP_Y;
+const MAP_LIMIT=Dw5Projection.LIMIT,MAP_STEP_X=Dw5Projection.STEP_X,MAP_STEP_Y=Dw5Projection.STEP_Y,WORLD_WIDTH=Dw5Projection.WIDTH,WORLD_HEIGHT=Dw5Projection.HEIGHT;
 function mapCoordinates(p){return{x:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.x/MAP_STEP_X))),y:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.y/MAP_STEP_Y)))}}
 const TYPES={tank:{name:'Type 99',icon:'▰',speed:150,dw5Speed:2,range:165,damage:19,hp:160},aa:{name:'TanSAM',icon:'▤',speed:75,dw5Speed:1,range:240,damage:15,hp:110},heli:{name:'Apache',icon:'✣',speed:112,range:180,damage:16,hp:100},jet:{name:'J-10',icon:'✈',speed:170,range:210,damage:22,hp:100},raptor:{name:'F-22C Raptor',icon:'✈',speed:8*75,range:12*90,damage:50,hp:65000},base:{name:'Military base',icon:'▦',speed:0,range:210,damage:12,hp:1000},airbase:{name:'Airbase',icon:'⊞',speed:0,range:210,damage:12,hp:800}};
 
@@ -14,7 +14,7 @@ for(const entry of DW5_MENU_UNITS){
  Object.assign(TYPES[entry.type],{speed:stat.speed*75,dw5Speed:stat.speed,range:stat.range*90,damage:stat.firepower});
 }
 
-let units=[],selected=new Set(),team=0,tool='select',paused=false,speed=1,zoom=.65,cam={x:1200,y:800},W=0,H=0,drag=null,mouse={x:0,y:0},shots=[],uid=0,last=0,statsTimer=0;
+let units=[],selected=new Set(),team=0,tool='select',paused=false,speed=1,zoom=1,cam={x:1200,y:800},W=0,H=0,drag=null,mouse={x:0,y:0},shots=[],uid=0,last=0,statsTimer=0;
 const colors=['#65ff38','#ff3535','#00cfff','#c2bd9f'];
 function notice(t){$('notice').textContent=t}
 function setTool(t){tool=t;document.querySelectorAll('[data-type]').forEach(b=>b.classList.toggle('active',b.dataset.type===t));$('select').classList.toggle('active',t==='select');canvas.style.cursor=t==='select'?'default':'crosshair'}
@@ -86,11 +86,11 @@ function spawn(type,x,y,side,count,originBase=null){
   }
  }
 }
-function demo(){units=[];selected.clear();shots=[];deathEffects.length=0;add('airbase',1110,620,0);add('base',2050,1300,1);spawn('heli',850,1030,0,49);spawn('tank',650,1270,0,14);spawn('aa',1430,1110,0,7);spawn('heli',2110,700,1,7);cam={x:1110,y:690};zoom=1.1;notice('Raised airbase demo. Select troops and left-click ground to move. Right-drag to pan.');}
+function demo(){units=[];selected.clear();shots=[];deathEffects.length=0;add('airbase',1110,620,0);add('base',2050,1300,1);spawn('heli',850,1030,0,49);spawn('tank',650,1270,0,14);spawn('aa',1430,1110,0,7);spawn('heli',2110,700,1,7);cam={x:1110,y:690};zoom=1;notice('Raised airbase demo. Select troops and left-click ground to move. Right-drag to pan.');}
 $('blue').onclick=()=>setTeam(0);$('red').onclick=()=>setTeam(1);$('ally').onclick=()=>setTeam(2);function setTeam(t){team=t;$('blue').classList.toggle('active',t===0);$('red').classList.toggle('active',t===1);$('ally').classList.toggle('active',t===2)}
 $('select').onclick=()=>setTool('select');function togglePause(){paused=!paused;$('pause').textContent=paused?'▶ Resume':'Ⅱ Pause'}$('pause').onclick=togglePause;$('speed').onchange=e=>speed=+e.target.value;$('reset').onclick=()=>{if(confirm('Replace the current battlefield with the demo?'))demo()};$('clear').onclick=()=>{if(confirm('Clear all troops and bases?')){units=[];selected.clear();notice('Empty battlefield ready. Choose a unit to deploy.')}};
-$('save').onclick=()=>{try{localStorage.setItem('apex-sandbox-v1',JSON.stringify({units,cam,zoom,uid,mapSeed:riverSeed}));notice('Scenario saved in this browser.')}catch{notice('Could not save: browser storage is unavailable.')}};
-$('load').onclick=()=>{try{let s=JSON.parse(localStorage.getItem('apex-sandbox-v1'));if(!s||!Array.isArray(s.units))return notice('No saved scenario in this browser.');if(Number.isFinite(s.mapSeed)){riverSeed=s.mapSeed>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));importedRiverSegments=[];localStorage.removeItem('apexDw5River');generateDw5StyleRivers();mapTerrain=Dw5World.generate(riverSeed,WORLD_WIDTH,WORLD_HEIGHT,activeRiverPieces());}units=s.units;for(const u of units)if(u.generatedBase&&u.team===3){u.team=1;u.playerName='Opponent';}repairTroopGroups();cam=s.cam;zoom=s.zoom;uid=s.uid;selected.clear();shots=[];notice('Saved scenario loaded.')}catch{notice('Could not load the saved scenario.')}};
+$('save').onclick=()=>{try{localStorage.setItem('apex-sandbox-v1',JSON.stringify({units,cam,zoom,uid,mapSeed:riverSeed,mapProjectionVersion:Dw5Projection.VERSION}));notice('Scenario saved in this browser.')}catch{notice('Could not save: browser storage is unavailable.')}};
+$('load').onclick=()=>{try{let s=JSON.parse(localStorage.getItem('apex-sandbox-v1'));if(!s||!Array.isArray(s.units))return notice('No saved scenario in this browser.');s=Dw5Projection.migrateScenario(s);if(Number.isFinite(s.mapSeed)){riverSeed=s.mapSeed>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));importedRiverSegments=[];localStorage.removeItem('apexDw5River');generateDw5StyleRivers();mapTerrain=Dw5World.generate(riverSeed,WORLD_WIDTH,WORLD_HEIGHT,activeRiverPieces());}units=s.units;for(const u of units)if(u.generatedBase&&u.team===3){u.team=1;u.playerName='Opponent';}repairTroopGroups();cam=s.cam;zoom=s.zoom;uid=s.uid;selected.clear();shots=[];notice('Saved scenario loaded.')}catch{notice('Could not load the saved scenario.')}};
 $('home').onclick=()=>{cam={x:WORLD_WIDTH/2,y:WORLD_HEIGHT/2};zoom=Math.min((W-80)/WORLD_WIDTH,(H-80)/WORLD_HEIGHT)};$('zin').onclick=()=>zoom=Math.min(2,zoom*1.2);$('zout').onclick=()=>zoom=Math.max(.005,zoom/1.2);
 function resize(){W=canvas.clientWidth;H=canvas.clientHeight;canvas.width=W*devicePixelRatio;canvas.height=H*devicePixelRatio}new ResizeObserver(resize).observe(canvas);
 function world(p){return{x:(p.x-W/2)/zoom+cam.x,y:(p.y-H/2)/zoom+cam.y}}function pos(e){let r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
@@ -1496,6 +1496,6 @@ function generateWorldMap(nextSeed=true){
  const terrain=Dw5World.generate(riverSeed,WORLD_WIDTH,WORLD_HEIGHT,activeRiverPieces());
  mapTerrain=terrain;units=[];selected.clear();shots=[];deathEffects.length=0;divisionMotion.clear();
  for(const b of terrain.bases){add(b.type,b.x,b.y,b.team);Object.assign(units.at(-1),{generatedBase:true,mapBaseId:b.index+1,playerName:b.team===0?'Player':'Opponent'});}
- cam={x:terrain.bases[0].x,y:terrain.bases[0].y};zoom=.65;
+ cam={x:terrain.bases[0].x,y:terrain.bases[0].y};zoom=1;
  notice('500 bases · 4 airbases · 20 helicopter bases · '+activeRiverPieces().filter(p=>p.type>=16).length+' bridges · seed '+riverSeed);
 }

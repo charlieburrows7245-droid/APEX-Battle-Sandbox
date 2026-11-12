@@ -1,3 +1,9 @@
+v1.18.0 - Native DW5 battlefield scale
+- Matched DW5 90x30 coordinate projection: 1200x1200 map coordinates render into 108000x36000 world pixels.
+- Default camera zoom is now 100%; native sprites keep their original proportions.
+- Square minimap, camera mapping, terrain placement and 100-coordinate border buffer use the corrected world bounds.
+- Legacy saved scenarios migrate Y positions and nested movement targets once on load.
+
 v1.17.5 - Larger minimap and enemy ownership
 - Enlarged minimap to 400px where screen space permits, with larger base symbols and troop dots.
 - Generated opposing bases now belong to the enemy team and display red flags/markers.

@@ -50,6 +50,8 @@
     const error=Math.abs(Math.atan2(Math.sin(angle-desired),Math.cos(angle-desired)));
     if(error<best){best=error;next=type;}
    }
+   // Leave a short inward straight at the top for a safe native crossing.
+   if(codes.length<6)next=0;
    heading=next;let piece=heading;
    const bridgeType={0:16,4:17,8:18,12:19}[heading];
    const inside=x>2000&&x<width-2000&&y>2000&&y<height-2000;
@@ -59,7 +61,7 @@
   }
   // Guarantee a native crossing even on short or predominantly diagonal paths.
   if(!bridges){const list=Array.from(codes),nodes=decodeLayout(codes,entry.x,entry.y);
-   const index=nodes.findIndex(p=>[0,4,8,12].includes(p.type)&&p.x>1500&&p.x<width-1500&&p.y>1000&&p.y<height-1000);
+   const index=nodes.findIndex(p=>[0,4,8,12].includes(p.type)&&p.x>1500&&p.x<width-1500&&p.y>400&&p.y<height-400);
    if(index>=0){list[index]=String.fromCharCode(97+({0:16,4:17,8:18,12:19}[nodes[index].type]));codes=list.join('');bridges=1;}
   }
   return[{encoded:codes,startX:entry.x,startY:entry.y,entryEdge,exitEdge,bridges}];

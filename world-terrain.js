@@ -4,7 +4,7 @@
  */
 (function(root){
  'use strict';
- function generate(seed,width=108000,height=108000,river=[]){
+ function generate(seed,width=108000,height=36000,river=[]){
   let state=(Number(seed)^0xa531e92d)>>>0;
   const random=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
   const cliffs=[],bases=[];
