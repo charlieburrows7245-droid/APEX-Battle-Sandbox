@@ -583,13 +583,19 @@ function baseTargetUnit(base,groups){
  const owner=base.members[0],radius=weaponRange(base);
  const candidates=groups.filter(g=>TYPES[g.type].speed&&!friendlyTeams(base.team,g.team))
   .flatMap(g=>g.members.filter(u=>u.hp>0&&Math.hypot(u.x-base.x,(u.y-base.y)*3)<=radius));
- if(!candidates.length){owner.baseTargetId=null;return null;}
+ if(!candidates.length){owner.baseTargetId=null;owner.baseTargetGroupId=null;return null;}
+ // Never spread base damage across a division: stick to its current victim.
  let target=candidates.find(u=>u.id===owner.baseTargetId);
- if(!target){
-  if(owner.baseTargetId==null){target=candidates.reduce((best,u)=>!best||Math.hypot(u.x-base.x,(u.y-base.y)*3)<Math.hypot(best.x-base.x,(best.y-base.y)*3)?u:best,null);}
-  else target=candidates[Math.floor(Math.random()*candidates.length)];
-  owner.baseTargetId=target.id;
+ if(target)return target;
+ const sameDivision=candidates.filter(u=>u.groupId===owner.baseTargetGroupId);
+ if(sameDivision.length){
+  // After a kill, attack the next living unit of the same division.
+  target=sameDivision.reduce((best,u)=>!best||(u.groupSlot??0)>(best.groupSlot??0)?u:best,null);
+ }else{
+  // First acquisition: the first/nearest individual entering base range.
+  target=candidates.reduce((best,u)=>!best||Math.hypot(u.x-base.x,(u.y-base.y)*3)<Math.hypot(best.x-base.x,(best.y-base.y)*3)?u:best,null);
  }
+ owner.baseTargetId=target.id;owner.baseTargetGroupId=target.groupId;
  return target;
 }
 function updateDivisionCombat(dt){
@@ -618,9 +624,12 @@ function updateDivisionCombat(dt){
    const amount=shotDamage(u,victim);
    damage.push({target,attacker:g.key,amount,victimId:baseVictim?.id});combatFiredAt.set(u,combatClock);
    const kind=COMBAT_STATS[u.type]?.sound??'mg';
-   shots.push({x:TYPES[u.type].speed?u.x:g.x,y:TYPES[u.type].speed?u.y:g.y,tx:TYPES[victim.type].speed?victim.x:target.x,ty:TYPES[victim.type].speed?victim.y:target.y,life:.18,total:.18,kind});
+   // Base turrets contribute to one focused volley, not separate visible
+   // shots scattered across the formation.
+   if(TYPES[g.type].speed)shots.push({x:u.x,y:u.y,tx:victim.x,ty:victim.y,life:.18,total:.18,kind});
    u.aimAngle=Math.atan2((victim.y-u.y)*3,victim.x-u.x);
   }
+  if(!TYPES[g.type].speed)shots.push({x:g.x,y:g.y,tx:victim.x,ty:victim.y,life:.18,total:.18,kind:'mg'});
   queueCombatSound(COMBAT_STATS[g.type]?.sound??'mg',g.x,g.y);
  }
  // Resolve together so array order never denies a division its return volley.
