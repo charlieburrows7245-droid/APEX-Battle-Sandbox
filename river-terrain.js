@@ -36,7 +36,8 @@
    px-=dy/length*ripple;py+=dx/length*ripple;waypoints.push({x:px,y:py});
   }
   let x=entry.x,y=entry.y,heading=[0,12,8,4][entryEdge],codes='',targetIndex=0;
-  let bridges=0,lastBridge=null,bridgeSpacing=2200+random()*2400;
+  // Keep crossings sparse: native projected distance, not a total count cap.
+  let bridges=0,lastBridge=null,bridgeSpacing=11000+random()*9000;
   const projectedDistance=(a,b)=>Math.hypot(a.x-b.x,3*(a.y-b.y));
   const outsideExit=()=>exitEdge===0?y<0:exitEdge===1?x>width:exitEdge===2?y>height:x<0;
   for(let k=0;k<Math.ceil((width+height)*4/180)+100;k++){
@@ -53,7 +54,7 @@
    const bridgeType={0:16,4:17,8:18,12:19}[heading];
    const inside=x>2000&&x<width-2000&&y>2000&&y<height-2000;
    const spaced=!lastBridge||projectedDistance({x,y},lastBridge)>bridgeSpacing;
-   if(bridgeType!==undefined&&inside&&spaced){piece=bridgeType;bridges++;lastBridge={x,y};bridgeSpacing=2200+random()*2400;}
+   if(bridgeType!==undefined&&inside&&spaced){piece=bridgeType;bridges++;lastBridge={x,y};bridgeSpacing=11000+random()*9000;}
    codes+=String.fromCharCode(97+piece);x+=DX[piece];y+=DY[piece];
   }
   // Guarantee a native crossing even on short or predominantly diagonal paths.

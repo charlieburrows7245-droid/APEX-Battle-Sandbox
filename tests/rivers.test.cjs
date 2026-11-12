@@ -13,3 +13,9 @@ const edgePairs=new Set(Array.from({length:100},(_,seed)=>{const r=rivers.seeded
 console.log('PASS: captured de4 coordinates, letter format validation, native tile offsets, connected seeded layouts, map crossings and seed persistence.');
 
 assert(Array.from({length:100},(_,seed)=>rivers.seededLayout(seed,108000,108000)[0].bridges).some(n=>n>=17),'long rivers can have at least seventeen bridges');
+
+for(const seed of [1416,1417])assert(rivers.seededLayout(seed,108000,108000)[0].bridges<=10,'reported crowded seeds have sparse crossings');
+for(let seed=0;seed<100;seed++){
+ const r=rivers.seededLayout(seed,108000,108000)[0],bridges=rivers.decodeLayout(r.encoded,r.startX,r.startY).filter(p=>p.type>=16);
+ for(let i=1;i<bridges.length;i++)assert(Math.hypot(bridges[i].x-bridges[i-1].x,3*(bridges[i].y-bridges[i-1].y))>11000,'crossings have minimum projected separation');
+}
