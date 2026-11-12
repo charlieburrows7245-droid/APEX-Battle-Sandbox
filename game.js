@@ -60,7 +60,7 @@ function buildingSprite(name,level,x,y,w,h,frames=10){let im=dwArt[name];if(!im?
 const DW5_DEFENCE={"x":[[50,-50,90,-64,130,-77,170,-90,210,-102,250,-114,290,-125,330,-136,70,-30,110,-40,150,-49,190,-58,230,-66,270,-74,310,-81,90,-10,130,-16,170,-22,210,-27,250,-32,290,-36,110,10,150,7,190,4,230,2],[-50,50,-90,64,-130,77,-170,90,-210,102,-250,114,-290,125,-330,136,-70,30,-110,40,-150,49,-190,58,-230,66,-270,74,-310,81,-90,10,-130,16,-170,22,-210,27,-250,32,-290,36,-110,-10,-150,-7,-190,-4,-230,-2],[50,-50,90,-90,130,-130,170,-170,210,-210,250,-250,290,-290,330,-330,70,-70,110,-110,150,-150,190,-190,230,-230,270,-270,310,-310,90,-90,130,-130,170,-170,210,-210,250,-250,290,-290,110,-110,150,-150,190,-190,230,-230],[-50,50,-90,64,-130,77,-170,90,-210,102,-250,114,-290,125,-330,136,-70,30,-110,40,-150,49,-190,58,-230,66,-270,74,-310,81,-90,10,-130,16,-170,22,-210,27,-250,32,-290,36,-110,-10,-150,-7,-190,-4,-230,-2]],"y":[[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230],[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230],[120,120,115,115,110,110,105,105,100,100,95,95,90,90,85,85,90,90,85,85,80,80,75,75,70,70,65,65,60,60,60,60,55,55,50,50,45,45,40,40,35,35,30,30,25,25,20,20,15,15],[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230]]};
 function baseGunCount(u){return Array.isArray(u.turretHealth)?u.turretHealth.filter(h=>h>0).length:baseGunCapacity(u);}
 function upgradeBaseFlak(u){syncBaseDefenceHealth(u);const missing=u.turretHealth.findIndex(h=>h<=0);if(missing>=0){u.turretHealth[missing]=turretMaxHealth(u);syncBaseDefenceHealth(u);return true;}const level=baseGunCapacity(u);if(level>=50)return false;u.defenceGuns=level+1;syncBaseDefenceHealth(u);return true;}
-function drawStarterDefences(u,air){ctx.save();const orientation=air?3:1,ax=air?510:450,ay=air?150:130,maxed=true;const gun=dwArt['flak.png'];const count=baseGunCount(u);if(gun.complete&&gun.naturalWidth){const fw=gun.naturalWidth/72;for(let j=count-1;j>=0;j--){const x=ax+DW5_DEFENCE.x[orientation][j],y=ay+DW5_DEFENCE.y[orientation][j]/3;const frame=idleTurretFrame(u,j,last);drawSmoothTurret(gun,frame,x,y)}}const front=dwArt[maxed?'mauer2b.png':'mauer1a.png'],side=dwArt[maxed?'mauer2d.png':'mauer1d.png'];if(true){if(front.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+(maxed?10:20));if(side.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-(maxed?180:170))}ctx.restore()}
+function drawStarterDefences(u,air){ctx.save();const orientation=air?3:1,ax=air?510:450,ay=air?150:130,maxed=true;const gun=dwArt['flak.png'];const health=u.turretHealth??[];if(gun.complete&&gun.naturalWidth){for(let j=health.length-1;j>=0;j--){if(!(health[j]>0))continue;const x=ax+DW5_DEFENCE.x[orientation][j],y=ay+DW5_DEFENCE.y[orientation][j]/3;const frame=idleTurretFrame(u,j,last);drawSmoothTurret(gun,frame,x,y)}}const front=dwArt[maxed?'mauer2b.png':'mauer1a.png'],side=dwArt[maxed?'mauer2d.png':'mauer1d.png'];if(true){if(front.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+(maxed?10:20));if(side.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-(maxed?180:170))}ctx.restore()}
 // Native factory stages 0..9 use one sprite; stages 10..19 add a second
 // sprite at the offsets used by DW5's base renderer.
 const FACTORY_TYPES={concrete:{name:'Concrete factory',resource:'Concrete',sprite:'g0.png',index:1},steel:{name:'Steel mill',resource:'Steel',sprite:'g1.png',index:2},carbon:{name:'Carbon factory',resource:'Carbon',sprite:'g2.png',index:3},fuel:{name:'Oil refinery',resource:'Fuel',sprite:'g3.png',index:4}};
@@ -106,6 +106,22 @@ function drawFactoryActivity(u){
 }
 function formatFactoryCountdown(seconds){const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),sec=Math.floor(seconds%60);return(h?h+':':'')+(h?String(m).padStart(2,'0'):m)+':'+String(sec).padStart(2,'0');}
 function drawRotatingHeads(u){const up=u.specialUpgrades??{},air=u.type==='airbase',ex=air?422:348,ey=air?99:76;ctx.save();ctx.translate(u.x,u.y);if(u.maxUpgraded||up.radar){const im=dwArt['radarturm2.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/50)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex-75-fw/2,ey-75-im.naturalHeight/2,fw,im.naturalHeight)}}if(u.maxUpgraded||up.detector){const im=dwArt['detec2.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/50)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex+40-fw/2,ey-90-im.naturalHeight/2,fw,im.naturalHeight)}}if(u.maxUpgraded||up.range){const im=dwArt['rakerw.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/100)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex+8-fw/2,ey-18-im.naturalHeight/2,fw,im.naturalHeight)}}ctx.restore()}
+// Draw a separate VF health bar over the turret currently taking damage.
+// DW5 measurement: 62 screen pixels, 3px black stroke, 2px health stroke.
+function drawTurretHealthBars(u){
+ const health=u.turretHealth??[],orientation=u.type==='airbase'?3:1;
+ const ax=u.type==='airbase'?510:450,ay=u.type==='airbase'?150:130;
+ const pixel=1/Math.max(.01,zoom),width=62*pixel;
+ for(let j=0;j<health.length;j++){
+  const hp=health[j];if(!(hp>0&&hp<TURRET_HP))continue;
+  const x=u.x+ax+DW5_DEFENCE.x[orientation][j],y=u.y+ay+DW5_DEFENCE.y[orientation][j]/3-28;
+  const ratio=Math.max(0,Math.min(1,hp/TURRET_HP));
+  ctx.save();ctx.lineCap='butt';ctx.lineWidth=3*pixel;ctx.strokeStyle='#000';
+  ctx.beginPath();ctx.moveTo(x-width/2,y);ctx.lineTo(x+width/2,y);ctx.stroke();
+  ctx.lineWidth=2*pixel;ctx.strokeStyle='#ff0000';ctx.beginPath();ctx.moveTo(x-width/2,y);ctx.lineTo(x+width/2,y);ctx.stroke();
+  ctx.strokeStyle='#00dd00';ctx.beginPath();ctx.moveTo(x-width/2,y);ctx.lineTo(x-width/2+width*ratio,y);ctx.stroke();ctx.restore();
+ }
+}
 function actualBase(u){syncBaseDefenceHealth(u);
  const up=u.specialUpgrades??{};
  const key=JSON.stringify([artRevision,u.type,u.factoryLevel,u.maxUpgraded,u.militaryCentralLevel,u.wallLevel,u.defenceGuns,baseGunCount(u),u.factoryLevels,up]);
@@ -117,7 +133,7 @@ function actualBase(u){syncBaseDefenceHealth(u);
   try{ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,1800,1000);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.translate(900,500);paintBase(u);}finally{ctx=main;}
   cached={surface,key};baseRenderCache.set(u,cached);
  }
- ctx.drawImage(cached.surface,u.x-900,u.y-500);ctx.save();ctx.translate(u.x,u.y);drawStarterDefences(u,u.type==='airbase');ctx.restore();drawRotatingHeads(u);drawFactoryActivity(u);
+ ctx.drawImage(cached.surface,u.x-900,u.y-500);ctx.save();ctx.translate(u.x,u.y);drawStarterDefences(u,u.type==='airbase');ctx.restore();drawRotatingHeads(u);drawFactoryActivity(u);drawTurretHealthBars(u);
  if(selected.has(u.id)){ctx.save();ctx.translate(u.x,u.y);ctx.strokeStyle='#d8f38e';ctx.lineWidth=2/zoom;ctx.beginPath();ctx.ellipse(0,0,705,225,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#162013';ctx.fillRect(-50,-277,100,4);ctx.fillStyle=colors[u.team];ctx.fillRect(-50,-277,100*u.hp/baseMaxHealth(u),4);ctx.restore();}
 }
 const nativeTroops={tank:{id:27,raise:-9,pivot:2},aa:{id:43,raise:-13,pivot:12},heli:{id:13,air:true},jet:{id:58,air:true},raptor:{id:58,air:true}};
