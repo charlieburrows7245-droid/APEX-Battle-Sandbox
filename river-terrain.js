@@ -17,7 +17,7 @@
  }
  function seededLayout(seed,width,height){
   let state=Number(seed)>>>0;const random=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
-  const layouts=[],count=1+Math.floor(random()*3);
+  const layouts=[],count=1; // One continuous river per map.
   for(let n=0;n<count;n++){
    const startX=width*((n+.25+.5*random())/count);let x=startX,y=-600,heading=0,codes='';
    for(let k=0;k<Math.ceil(height/140)+40&&y<height+600;k++){
