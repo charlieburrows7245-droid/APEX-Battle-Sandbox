@@ -135,3 +135,12 @@ header{height:46px;padding:0 12px;background:#161b18eF}.brand{font-size:17px}.br
 
 /* v0.75: native screenshot factory menu icon crops; no changes to factory logic. */
 #factory-hover-icons img{width:60px;height:36px;object-fit:fill}
+
+/* Factory timer cancellation: native-style red X and confirmation screen. */
+#factory-hover-icons button.factory-cancel::before{content:'✕';position:absolute;inset:-3px 0 auto;color:#f71919;font:bold 41px/36px Arial;text-shadow:1px 2px 1px #320000;pointer-events:none}
+#factory-hover-icons button.factory-cancel::after{content:'Cancel';position:absolute;bottom:0;color:#fff6b5;font:10px/10px Arial;pointer-events:none}
+#cancel-production-dialog{box-sizing:border-box;width:calc(100vw - 10px);max-width:900px;height:250px;position:fixed;inset:0;margin:auto;border:0;border-radius:5px;padding:58px 12px 12px;background:#102231;color:white;text-align:center;font:14px Arial,sans-serif}
+#cancel-production-dialog::backdrop{background:rgba(0,0,0,.15)}
+.cancel-production-actions{display:flex;justify-content:center;gap:9px}
+.cancel-production-actions button{min-width:62px;height:44px;border:0;border-radius:0;background:#413dcb;box-shadow:0 4px #22224b;color:#fff;font:14px Arial;cursor:pointer}
+.cancel-production-actions button:hover{background:#5752e2}
