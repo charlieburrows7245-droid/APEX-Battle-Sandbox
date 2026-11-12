@@ -9,7 +9,7 @@ const colors=['#65ff38','#ff3535','#00cfff'];
 function notice(t){$('notice').textContent=t}
 function setTool(t){tool=t;document.querySelectorAll('[data-type]').forEach(b=>b.classList.toggle('active',b.dataset.type===t));$('select').classList.toggle('active',t==='select');canvas.style.cursor=t==='select'?'default':'crosshair'}
 for(const [id,t] of Object.entries(TYPES)){if(t.speed&&id!=='heli')continue;let b=document.createElement('button');b.dataset.type=id;b.innerHTML=`<span>${t.icon}</span>${id==='heli'?'Apache helicopter':t.name}`;b.onclick=()=>{setTool(id);notice('Click the battlefield to place '+t.name)};$('catalog').append(b)}
-function add(type,x,y,side){let t=TYPES[type];units.push({id:++uid,type,x,y,team:side,hp:t.hp,factoryLevel:1,militaryCentralLevel:0,wallLevel:1,defenceGuns:2,angle:side?Math.PI:0,cool:Math.random(),target:null})}
+function add(type,x,y,side){let t=TYPES[type];units.push({id:++uid,type,x,y,team:side,hp:t.hp,factoryLevel:1,militaryCentralLevel:0,wallLevel:2,defenceGuns:2,angle:side?Math.PI:0,cool:Math.random(),target:null})}
 
 const GROUP_SIZE=49,PLAYER_TEAM=0;
 const DW5_FORMATION_X=[0,1,1,-1,-1,0,2,0,-2,2,2,-2,-2,1,1,-1,-1,3,3,-3,-3,0,4,0,-4,-3,3,-3,3,-4,4,-4,4,2,-2,-2,2,5,-5,5,-5,1,-1,-1,1,0,6,0,-6];
@@ -60,7 +60,7 @@ function buildingSprite(name,level,x,y,w,h,frames=10){let im=dwArt[name];if(!im?
 const DW5_DEFENCE={"x":[[50,-50,90,-64,130,-77,170,-90,210,-102,250,-114,290,-125,330,-136,70,-30,110,-40,150,-49,190,-58,230,-66,270,-74,310,-81,90,-10,130,-16,170,-22,210,-27,250,-32,290,-36,110,10,150,7,190,4,230,2],[-50,50,-90,64,-130,77,-170,90,-210,102,-250,114,-290,125,-330,136,-70,30,-110,40,-150,49,-190,58,-230,66,-270,74,-310,81,-90,10,-130,16,-170,22,-210,27,-250,32,-290,36,-110,-10,-150,-7,-190,-4,-230,-2],[50,-50,90,-90,130,-130,170,-170,210,-210,250,-250,290,-290,330,-330,70,-70,110,-110,150,-150,190,-190,230,-230,270,-270,310,-310,90,-90,130,-130,170,-170,210,-210,250,-250,290,-290,110,-110,150,-150,190,-190,230,-230],[-50,50,-90,64,-130,77,-170,90,-210,102,-250,114,-290,125,-330,136,-70,30,-110,40,-150,49,-190,58,-230,66,-270,74,-310,81,-90,10,-130,16,-170,22,-210,27,-250,32,-290,36,-110,-10,-150,-7,-190,-4,-230,-2]],"y":[[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230],[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230],[120,120,115,115,110,110,105,105,100,100,95,95,90,90,85,85,90,90,85,85,80,80,75,75,70,70,65,65,60,60,60,60,55,55,50,50,45,45,40,40,35,35,30,30,25,25,20,20,15,15],[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230]]};
 function baseGunCount(u){return Array.isArray(u.turretHealth)?u.turretHealth.filter(h=>h>0).length:baseGunCapacity(u);}
 function upgradeBaseFlak(u){syncBaseDefenceHealth(u);const missing=u.turretHealth.findIndex(h=>h<=0);if(missing>=0){u.turretHealth[missing]=turretMaxHealth(u);syncBaseDefenceHealth(u);return true;}const level=baseGunCapacity(u);if(level>=50)return false;u.defenceGuns=level+1;syncBaseDefenceHealth(u);return true;}
-function drawStarterDefences(u,air){ctx.save();const orientation=air?3:1,ax=air?510:450,ay=air?150:130,maxed=(u.wallLevel??1)>1;const gun=dwArt['flak.png'];const count=baseGunCount(u);if(gun.complete&&gun.naturalWidth){const fw=gun.naturalWidth/72;for(let j=count-1;j>=0;j--){const x=ax+DW5_DEFENCE.x[orientation][j],y=ay+DW5_DEFENCE.y[orientation][j]/3;const frame=idleTurretFrame(u,j,last);drawSmoothTurret(gun,frame,x,y)}}const front=dwArt[maxed?'mauer2b.png':'mauer1a.png'],side=dwArt[maxed?'mauer2d.png':'mauer1d.png'];if((u.wallLevel??1)>0){if(front.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+(maxed?10:20));if(side.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-(maxed?180:170))}ctx.restore()}
+function drawStarterDefences(u,air){ctx.save();const orientation=air?3:1,ax=air?510:450,ay=air?150:130,maxed=true;const gun=dwArt['flak.png'];const count=baseGunCount(u);if(gun.complete&&gun.naturalWidth){const fw=gun.naturalWidth/72;for(let j=count-1;j>=0;j--){const x=ax+DW5_DEFENCE.x[orientation][j],y=ay+DW5_DEFENCE.y[orientation][j]/3;const frame=idleTurretFrame(u,j,last);drawSmoothTurret(gun,frame,x,y)}}const front=dwArt[maxed?'mauer2b.png':'mauer1a.png'],side=dwArt[maxed?'mauer2d.png':'mauer1d.png'];if(true){if(front.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+(maxed?10:20));if(side.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-(maxed?180:170))}ctx.restore()}
 // Native factory stages 0..9 use one sprite; stages 10..19 add a second
 // sprite at the offsets used by DW5's base renderer.
 const FACTORY_TYPES={concrete:{name:'Concrete factory',resource:'Concrete',sprite:'g0.png',index:1},steel:{name:'Steel mill',resource:'Steel',sprite:'g1.png',index:2},carbon:{name:'Carbon factory',resource:'Carbon',sprite:'g2.png',index:3},fuel:{name:'Oil refinery',resource:'Fuel',sprite:'g3.png',index:4}};
@@ -519,6 +519,12 @@ function shotDamage(attacker,target){
  if(attacker.type==='aa'&&target.type==='heli')firepower=stat.special;
  if(attacker.type==='heli'&&!['heli','jet'].includes(target.type))firepower=stat.special;
  // Troop armour uses DW5 stats; base damage normalization remains a sandbox rule.
+ if(!TYPES[target.type].speed){
+  // DW5 Wall test: 47 MRHs produced 353 VF/tick, 49 more produced 367.
+  // 1500 MRH firepower / (20 * 10 wall armour) = 7.5 VF per MRH.
+  // Other unit-vs-base modifiers remain provisional until measured.
+  return firepower/(20*BASE_WALL_ARMOR);
+ }
  const armour=COMBAT_STATS[target.type]?.armor??100;
  return firepower/armour*TYPES[target.type].hp/100;
 }
@@ -595,10 +601,11 @@ $('combat-sound').onclick=()=>{
 };
 $('combat-ranges').onclick=()=>{showWeaponRanges=!showWeaponRanges;$('combat-ranges').textContent='Ranges: '+(showWeaponRanges?'On':'Off');$('combat-ranges').setAttribute('aria-pressed',String(showWeaponRanges));};
 
-// Sandbox fallbacks: native server HP/kill interval are not exposed by the client.
-const TURRET_HP=500,CASUALTY_INTERVAL=1;
+// Native DW5 client observed 65000 VF per turret and Wall x10 armour.
+// The one-second casualty interval is a conservative sandbox policy.
+const TURRET_HP=65000,CASUALTY_INTERVAL=1,BASE_WALL_ARMOR=10;
 function baseGunCapacity(u){return u.maxUpgraded?50:Math.max(2,Math.min(50,Math.trunc(u.defenceGuns??2)));}
-function turretMaxHealth(u){return TURRET_HP*((u.maxUpgraded||(u.wallLevel??1)>1)?10:1);}
+function turretMaxHealth(u){return TURRET_HP;} // Wall is armour, not additional turret HP.
 function syncBaseDefenceHealth(u){
  const count=baseGunCapacity(u),maximum=turretMaxHealth(u);
  if(!Array.isArray(u.turretHealth)){
@@ -607,7 +614,7 @@ function syncBaseDefenceHealth(u){
   u.turretHealth=Array.from({length:count},()=>{const h=Math.min(maximum,remaining);remaining-=h;return h;});
  }else{
   const previous=u.turretHealthMax??maximum;
-  // Scale damage proportionally when adding/removing the wall, not a full heal.
+  // Preserve remaining VF; walls affect damage, not health.
   u.turretHealth=u.turretHealth.slice(0,count).map(h=>Math.max(0,Math.min(maximum,(Number(h)||0)/previous*maximum)));
   while(u.turretHealth.length<count)u.turretHealth.push(maximum);
  }
@@ -635,6 +642,8 @@ function applyGroupDamage(group,amount){
   if(slot<0)return;victim.turretHealth[slot]=Math.max(0,victim.turretHealth[slot]-amount);died=victim.turretHealth[slot]===0;
   victim.hp=victim.turretHealth.reduce((n,h)=>n+h,0);
  }else{victim.hp=Math.max(0,victim.hp-amount);died=victim.hp===0;}
+ // Keep the one-casualty-per-second sandbox safety rule; separate DW5 attacks
+ // may hit the next turret within the same server update, but exact timing is unverified.
  // Discard overkill and all incoming damage during this simulation-time lock.
  // No damage debt is saved up to kill more members after firing has stopped.
  if(died){for(const u of group.members)u.casualtyCooldown=CASUALTY_INTERVAL;queueCombatSound('explo',victim.x,victim.y);}
