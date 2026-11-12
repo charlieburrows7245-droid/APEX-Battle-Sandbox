@@ -733,6 +733,26 @@ function animateBaseMissiles(base,victim,dt){
   timers[j]=.22+Math.random()*.95;
  }
 }
+// Visual-only independent missile clocks for moving units. Never alter damage cooldowns.
+const troopMissileSchedules=new WeakMap();
+function animateTroopMissiles(group,victim,dt){
+ if(!victim)return;
+ const missileType=group.type==='heli'||group.type==='aa'||group.type==='raptor';
+ if(!missileType)return;
+ for(const unit of group.members){
+  if(unit.hp<=0)continue;
+  let timer=troopMissileSchedules.get(unit);
+  if(timer===undefined)timer=Math.random()*.85;
+  timer-=dt;
+  if(timer>0){troopMissileSchedules.set(unit,timer);continue;}
+  const impact=TYPES[victim.type].speed?{x:victim.x,y:victim.y}:targetedTurretPoint(victim);
+  const distance=Math.hypot(impact.x-unit.x,(impact.y-unit.y)*3);
+  // Allow a visible flight across the battlefield; no instantaneous 180ms dash.
+  const duration=Math.max(.35,Math.min(1.5,distance/1350));
+  shots.push({x:unit.x,y:unit.y,tx:impact.x,ty:impact.y,life:duration,total:duration,kind:'missile',missile:true});
+  troopMissileSchedules.set(unit,.32+Math.random()*1.08);
+ }
+}
 function updateDivisionCombat(dt){
  combatClock+=dt;for(const u of units)u.casualtyCooldown=Math.max(0,(Number(u.casualtyCooldown)||0)-dt);shots.forEach(s=>s.life-=dt);shots=shots.filter(s=>s.life>0);
  const groups=combatGroups(),damage=[],liveKeys=new Set();
@@ -750,6 +770,7 @@ function updateDivisionCombat(dt){
    if(p>priority||(p===priority&&d<best)){target=other;best=d;priority=p;}
   }
   if(!TYPES[g.type].speed)animateBaseMissiles(g.members[0],baseVictim,dt);
+  else animateTroopMissiles(g,target?.members.reduce((a,b)=>(b.groupSlot??0)>(a.groupSlot??0)?b:a),dt);
   if(!target)continue;
   for(const u of g.members){u.aimAngle=Math.atan2((target.y-u.y)*3,target.x-u.x);u.aimUntil=last+1000;}
   if(cooldown>0)continue;
@@ -762,7 +783,7 @@ function updateDivisionCombat(dt){
    const kind=COMBAT_STATS[u.type]?.sound??'mg';
    // Base turrets contribute to one focused volley, not separate visible
    // shots scattered across the formation.
-   if(TYPES[g.type].speed){const impact=TYPES[victim.type].speed?{x:victim.x,y:victim.y}:targetedTurretPoint(victim);shots.push({x:u.x,y:u.y,tx:impact.x,ty:impact.y,life:.18,total:.18,kind,missile:u.type==='heli'||u.type==='aa'||u.type==='raptor'});}
+   if(TYPES[g.type].speed&&!['heli','aa','raptor'].includes(u.type)){const impact=TYPES[victim.type].speed?{x:victim.x,y:victim.y}:targetedTurretPoint(victim);shots.push({x:u.x,y:u.y,tx:impact.x,ty:impact.y,life:.18,total:.18,kind});}
    u.aimAngle=Math.atan2((victim.y-u.y)*3,victim.x-u.x);
   }
   // Base missile visuals are emitted independently above, not per damage volley.
