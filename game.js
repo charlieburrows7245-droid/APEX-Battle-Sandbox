@@ -667,13 +667,11 @@ function baseTargetUnit(base,groups){
  const locked=eligible.find(g=>g.members.some(u=>u.groupId===owner.baseTargetGroupId));
  const chosen=locked??eligible.reduce((best,g)=>!best||Math.hypot(g.x-base.x,(g.y-base.y)*3)<Math.hypot(best.x-base.x,(best.y-base.y)*3)?g:best,null);
  const alive=chosen.members.filter(u=>u.hp>0);
- // Continue shooting a living locked victim; after a casualty, select the
- // exposed edge closest to the defensive gun line (not the highest slot ID).
- let target=alive.find(u=>u.id===owner.baseTargetId);
- if(!target){
-  const gunX=owner.x+(owner.type==='airbase'?510:450),gunY=owner.y+(owner.type==='airbase'?150:130);
-  target=alive.reduce((best,u)=>!best||Math.hypot(u.x-gunX,(u.y-gunY)*3)<Math.hypot(best.x-gunX,(best.y-gunY)*3)?u:best,null);
- }
+ // Formation slots are assigned as units are added (0, 1, 2 ...).
+ // The newest/highest slot is on the outer edge: destroy that slot first,
+ // then work backwards through the formation, one casualty at a time.
+ // Keep visual turret aim, tracers and actual damage on the same individual.
+ const target=alive.reduce((best,u)=>!best||(u.groupSlot??0)>(best.groupSlot??0)?u:best,null);
  owner.baseTargetId=target.id;owner.baseTargetGroupId=target.groupId;
  return target;
 }
