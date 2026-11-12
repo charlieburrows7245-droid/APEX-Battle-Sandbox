@@ -39,6 +39,9 @@ function shortTroopLabel(type){
  if(/pantsir|pantsyr|panzir|pansir/i.test(name))return 'psir';
  if(/^(?:LT|light\s*tank)$/i.test(name)||type==='lt')return 'LTank';
  if(/jammer/i.test(name)||type==='jammer')return 'JAM';
+ if(/^(?:TD|tank\s*destroyer)$/i.test(name)||type==='td')return 'JPAN';
+ if(/miss(?:ile|le)?\s*wheel\s*tank/i.test(name)||type==='mwt')return 'MWT';
+ if(/msta/i.test(name)||type==='msta')return 'MSTA';
  const known={
   aa:'TanSAM',heli:'Apache',jet:'J-10',raptor:'F-22C',
  };
@@ -54,7 +57,7 @@ function shortTroopLabel(type){
  if(distinctive.length)return distinctive.join(' ').slice(0,12);
  return words.map(w=>w[0]?.toUpperCase()||'').join('').slice(0,8);
 }
-function drawTroopGroupLabels(visible){ctx.save();ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.font='bold 12px Tahoma,Arial,sans-serif';for(const group of troopGroups()){if(!group.some(visible))continue;const x=group.reduce((sum,u)=>sum+u.x,0)/group.length,cy=group.reduce((sum,u)=>sum+u.y,0)/group.length,y=Math.min(...group.map(u=>u.y))-45;if(group.some(u=>selected.has(u.id))){const radius=Math.max(...group.map(u=>Math.abs(u.x-x)+3*Math.abs(u.y-cy)))+36;ctx.strokeStyle='#dde89b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-radius,cy);ctx.lineTo(x,cy-radius/3);ctx.lineTo(x+radius,cy);ctx.lineTo(x,cy+radius/3);ctx.closePath();ctx.stroke();}ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.9)';const first=group[0],owner=(first.playerName??BASE_PLAYER_NAMES[first.team]??'Player').toUpperCase(),label=group.length+' '+shortTroopLabel(first.type);ctx.strokeText(owner,x,y-12);ctx.strokeText(label,x,y);ctx.fillStyle=troopRelationColor(first.team);ctx.fillText(owner,x,y-12);ctx.fillText(label,x,y);}ctx.restore();}
+function drawTroopGroupLabels(visible){ctx.save();ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.font='bold 12px Tahoma,Arial,sans-serif';for(const group of troopGroups()){if(!group.some(visible))continue;const x=group.reduce((sum,u)=>sum+u.x,0)/group.length,cy=group.reduce((sum,u)=>sum+u.y,0)/group.length,y=Math.min(...group.map(u=>u.y))-45;if(group.some(u=>selected.has(u.id))){const radius=Math.max(...group.map(u=>Math.abs(u.x-x)+3*Math.abs(u.y-cy)))+36;ctx.strokeStyle='#dde89b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-radius,cy);ctx.lineTo(x,cy-radius/3);ctx.lineTo(x+radius,cy);ctx.lineTo(x,cy+radius/3);ctx.closePath();ctx.stroke();}ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.9)';const first=group[0],owner=(first.playerName??BASE_PLAYER_NAMES[first.team]??'Player').toUpperCase(),label=group.length+' '+shortTroopLabel(first.type).toUpperCase();ctx.strokeText(owner,x,y-12);ctx.strokeText(label,x,y);ctx.fillStyle=troopRelationColor(first.team);ctx.fillText(owner,x,y-12);ctx.fillText(label,x,y);}ctx.restore();}
 
 function spawn(type,x,y,side,count,originBase=null){
  if(!TYPES[type].speed){for(let i=0;i<count;i++)add(type,x,y,side);return;}
