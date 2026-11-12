@@ -557,7 +557,8 @@ function combatGroups(){
 function weaponRange(group,target=null){
  const stat=COMBAT_STATS[group.type],first=group.members[0];
  let radius=stat?stat.range*90:TYPES[group.type].range;
- if(!stat)return radius*((first.maxUpgraded||first.specialUpgrades?.range)?2:1);
+ // Base defence guns: 12 DW5 map units normally, 24 with Long Range.
+ if(!stat)return 12*90*((first.maxUpgraded||first.specialUpgrades?.range)?2:1);
  let multiplier=1;
  if(group.type==='aa'&&target?.type==='heli')multiplier=3;
  const firing=target?.firing;
