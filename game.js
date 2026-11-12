@@ -569,123 +569,72 @@ function drawTerrainView(){
  ctx.restore();
 }
 
-/* DW5-inspired, seed-stable narrow river network. Bridges are visual previews:
-   terrain collision and pathfinding remain deliberately unchanged. */
-// DW5 river layouts are imported only; never synthesize placeholder rivers.
-localStorage.removeItem('apexTerrainRivers');
-localStorage.removeItem('apexTerrainSeed');
-// DW5 river replay: decode its server-provided base64-like nibble stream.
-// This is a map-data importer, not a substitute for DW5's server-side generator.
-function decodeDw5RiverNibbles(encoded){
- const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
- const bytes=[];let bits=0,buffer=0;
- for(const ch of encoded.replace(/\\s/g,'')){
-  if(ch==='=')break;
-  const value=alphabet.indexOf(ch);if(value<0)throw Error('Invalid DW5 river character');
-  buffer=(buffer<<6)|value;bits+=6;
-  while(bits>=4){bits-=4;bytes.push((buffer>>bits)&15);buffer&=(1<<bits)-1;}
- }
- return bytes;
+// DW5 5 draws fluss1..10.jpg through an XOR alpha mask and optional
+// fluss1..10.png water highlights. Coordinates come from de4 letter pieces.
+const riverMask=new Image(),riverArt=new Map(),riverOverlay=new Map();
+riverMask.src='data:image/png;base64,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';
+function prepareRiverTile(index){
+ const im=riverArt.get(index);if(!im?.complete||!im.naturalWidth||!riverMask.complete||!riverMask.naturalWidth)return;
+ const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;
+ const g=c.getContext('2d');g.drawImage(im,0,0);g.globalCompositeOperation='xor';g.drawImage(riverMask,0,0,c.width,c.height);
+ im.masked=c;
 }
-function importDw5River(encoded){
- const data=decodeDw5RiverNibbles(encoded),points=[];
- let x=0,y=0,angle=0,started=false;
- // The original DW5 seegen decoder uses 10 header nibbles plus two metadata
- // nibbles at the beginning of a river stream, then direction nibbles.
- for(let i=0;i<data.length;i++){
-  if(!started){
-   if(i+11>=data.length)break;
-   x=(4096*data[i++]+256*data[i++]+16*data[i++]+data[i++])*4;
-   y=(4096*data[i++]+256*data[i++]+16*data[i++]+data[i++])*4;
-   angle=(16*data[i++]*5+5*data[i++]);i+=2;started=true;
-  }
-  const turn=data[i];if(turn===3)angle-=5;if(turn===5)angle+=5;
-  angle=(angle+360)%360;
-  x+=300*Math.sin(angle*Math.PI/180);
-  y-=300*Math.cos(angle*Math.PI/180);
-  points.push({x,y:y/2,angle});
- }
- if(!points.length)throw Error('No DW5 river segments decoded');
- // Preserve segment positions and headings for later sprite-exact rendering.
- return points;
+riverMask.onload=()=>{for(let i=1;i<=10;i++)prepareRiverTile(i);};
+for(let i=1;i<=10;i++){
+ const im=new Image();riverArt.set(i,im);im.onload=()=>prepareRiverTile(i);im.src='assets/i/fluss'+i+'.jpg';
+ const overlay=new Image();overlay.src='assets/i/fluss'+i+'.png';riverOverlay.set(i,overlay);
 }
-const importedDw5River=localStorage.getItem('apexDw5River');
-let importedRiverSegments=[];
-try{if(importedDw5River)importedRiverSegments=importDw5River(importedDw5River)}catch(_){localStorage.removeItem('apexDw5River')}
-window.apexImportDw5River=function(encoded){
- const segments=importDw5River(encoded);
- importedRiverSegments=segments;
- localStorage.setItem('apexDw5River',encoded);
- notice('Imported '+segments.length+' DW5 river segments');
- return segments.length;
-};
-
-// Procedural DW5-style river layout using the client decoder's 300-unit steps
-// and 5-degree turns. Server-side layout choices are not available.
 let riverSeed=Number(localStorage.getItem('apexRiverSeed')||'1415')>>>0;
-let generatedRiverSegments=[];
+let generatedRiverSegments=[],importedRiverSegments=[],riverLayouts=[];
 function generateDw5StyleRivers(){
- let state=riverSeed||1;
- const rnd=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
- generatedRiverSegments=[];
- const routes=[];
- // A variable number of connected channels; branches share their parent's nodes.
- const primaryCount=1+Math.floor(rnd()*3);
- for(let n=0;n<primaryCount;n++){
-  const vertical=rnd()<.78;
-  const start=vertical?{x:(.14+.72*rnd())*WORLD_WIDTH,y:-240}:{x:-240,y:(.14+.72*rnd())*WORLD_HEIGHT};
-  let heading=vertical?180:90;
-  const route=[start],length=vertical?WORLD_HEIGHT:WORLD_WIDTH;
-  const steps=Math.ceil((length+800)/300);
-  let bias=0;
-  for(let k=0;k<steps;k++){
-   if(rnd()<.18)bias=Math.max(-2,Math.min(2,bias+(rnd()<.5?-1:1)));
-   const turn=(rnd()<.67?0:(rnd()<.5?-5:5))+bias*2.5;
-   heading+=turn;
-   const prev=route[route.length-1];
-   route.push({x:prev.x+300*Math.sin(heading*Math.PI/180),y:prev.y-300*Math.cos(heading*Math.PI/180)});
-  }
-  routes.push(route);
- }
- // Occasional tributaries; do not require exactly two rivers.
- if(routes.length&&rnd()<.75){
-  const parent=routes[Math.floor(rnd()*routes.length)],idx=2+Math.floor(rnd()*Math.max(1,parent.length-4));
-  const origin=parent[idx],route=[{...origin}];let heading=rnd()<.5?60:300;
-  for(let k=0;k<5+Math.floor(rnd()*6);k++){
-   heading+=(rnd()<.5?-5:5);
-   const p=route[route.length-1];
-   route.push({x:p.x+300*Math.sin(heading*Math.PI/180),y:p.y-300*Math.cos(heading*Math.PI/180)});
-  }
-  routes.push(route);
- }
- for(const route of routes)for(let k=1;k<route.length;k++){
-  const a=route[k-1],b=route[k],angle=Math.atan2(b.y-a.y,b.x-a.x);
-  generatedRiverSegments.push({a,b,angle,width:16});
- }
+ riverLayouts=Dw5Rivers.seededLayout(riverSeed,WORLD_WIDTH,WORLD_HEIGHT);
+ generatedRiverSegments=riverLayouts.flatMap(r=>Dw5Rivers.decodeLayout(r.encoded,r.startX,r.startY));
 }
+function importDw5River(encoded,flusspos=10000,startY=0){
+ // The captured DW5 5 client uses de4, not the seegen/base64 stream
+ // used by other game versions. Accept raw letters or a saved layout object.
+ const data=typeof encoded==='object'&&encoded!==null?encoded:{encoded,startX:flusspos,startY};
+ return Dw5Rivers.decodeLayout(data.encoded,Number(data.startX??data.flusspos??flusspos),Number(data.startY??0));
+}
+try{
+ const saved=localStorage.getItem('apexDw5River');
+ if(saved){const data=saved.trim().startsWith('{')?JSON.parse(saved):{encoded:saved,startX:10000,startY:0};importedRiverSegments=importDw5River(data);}
+}catch(_){/* Leave existing saved data intact; generate a valid layout instead. */}
+window.apexImportDw5River=function(encoded,flusspos=10000,startY=0){
+ const data=typeof encoded==='object'&&encoded!==null?encoded:{encoded,startX:flusspos,startY};
+ const segments=importDw5River(data);importedRiverSegments=segments;localStorage.setItem('apexDw5River',JSON.stringify(data));
+ notice('Imported '+segments.length+' native DW5 river pieces');return segments.length;
+};
 generateDw5StyleRivers();
 const riverGenerateButton=document.getElementById('terrain-generate');
 if(riverGenerateButton)riverGenerateButton.addEventListener('click',()=>{
  riverSeed=(riverSeed+1)>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));
- generatedRiverSegments=[];generateDw5StyleRivers();
- notice('Generated DW5-style river seed '+riverSeed);
+ importedRiverSegments=[];localStorage.removeItem('apexDw5River');generateDw5StyleRivers();
+ notice('Generated '+riverLayouts.length+' rivers · seed '+riverSeed);
 });
+function activeRiverPieces(){return importedRiverSegments.length?importedRiverSegments:generatedRiverSegments;}
 function drawGeneratedRivers(){
- if(!importedRiverSegments.length&&!generatedRiverSegments.length)return;
  ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);
  ctx.beginPath();ctx.rect(0,0,WORLD_WIDTH,WORLD_HEIGHT);ctx.clip();
- for(const segment of generatedRiverSegments){
-  ctx.strokeStyle='#656657';ctx.lineWidth=24;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(segment.a.x,segment.a.y);ctx.lineTo(segment.b.x,segment.b.y);ctx.stroke();
-  ctx.strokeStyle='#19323e';ctx.lineWidth=17;ctx.stroke();
-  ctx.strokeStyle='#43677a';ctx.lineWidth=11;ctx.stroke();
- }
- for(const segment of importedRiverSegments){
-  ctx.save();ctx.translate(segment.x,segment.y);ctx.rotate(segment.angle*Math.PI/180);
-  ctx.fillStyle='#274d60';ctx.fillRect(-12,-145,24,290);
-  ctx.strokeStyle='#a5a08b';ctx.lineWidth=3;ctx.strokeRect(-12,-145,24,290);
-  ctx.restore();
+ const left=cam.x-W/(2*zoom),right=cam.x+W/(2*zoom),top=cam.y-H/(2*zoom),bottom=cam.y+H/(2*zoom);
+ for(const piece of activeRiverPieces()){
+  if(piece.left+1500<left||piece.left>right||piece.top+500<top||piece.top>bottom)continue;
+  const im=riverArt.get(piece.image),overlay=riverOverlay.get(piece.image);
+  if(!im?.masked)continue;
+  ctx.drawImage(im.masked,piece.left,piece.top);
+  if(overlay?.complete&&overlay.naturalWidth){ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.5;ctx.drawImage(overlay,piece.left,piece.top);ctx.restore();}
  }
  ctx.restore();
+}
+function drawRiverMinimap(){
+ mc.save();mc.strokeStyle='#365a70';mc.lineWidth=1;
+ for(const piece of activeRiverPieces()){
+  if(piece.type>=16)continue;
+  const nextX=piece.x+[-30,230,630,1100,1100,1100,870,540,30,-230,-630,-1100,-1100,-1100,-870,-540][piece.type];
+  const nextY=piece.y+[300,300,300,180,-60,-200,-300,-300,-300,-300,-300,-180,60,200,300,300][piece.type];
+  mc.beginPath();mc.moveTo(piece.x/WORLD_WIDTH*mini.width,piece.y/WORLD_HEIGHT*mini.height);mc.lineTo(nextX/WORLD_WIDTH*mini.width,nextY/WORLD_HEIGHT*mini.height);mc.stroke();
+ }
+ mc.restore();
 }
 
 let fpsFrames=0,fpsWindow=0,lastMini=0,groundPattern=null;
@@ -717,7 +666,7 @@ drawDeathEffects();for(const u of units)if(TYPES[u.type].speed&&visible(u))drawT
    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+ux*13,y+uy*13);ctx.stroke();
    ctx.restore();
   }else{ctx.strokeStyle='#ffe9a1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.tx,s.ty);ctx.stroke();}
- }ctx.restore();if(drag?.kind==='select'){ctx.fillStyle='#c7e88722';ctx.strokeStyle='#c7e887';let a=drag.start,b=drag.end;ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y)}if(now-lastMini>=100){lastMini=now;mc.fillStyle='#4a5838';mc.fillRect(0,0,mini.width,mini.height);for(let u of units){mc.fillStyle=colors[u.team];mc.fillRect(u.x/WORLD_WIDTH*mini.width,u.y/WORLD_HEIGHT*mini.height,TYPES[u.type].speed?2:5,TYPES[u.type].speed?2:5)}mc.strokeStyle='#e4efc5';mc.strokeRect((cam.x-W/zoom/2)/WORLD_WIDTH*mini.width,(cam.y-H/zoom/2)/WORLD_HEIGHT*mini.height,W/zoom/WORLD_WIDTH*mini.width,H/zoom/WORLD_HEIGHT*mini.height);}if(now-statsTimer>150){for(const u of units)if(u.production?.endsAt&&u.production.endsAt<=Date.now())delete u.production;const coordinate=mapCoordinates(world(mouse));$('coordinates').textContent=coordinate.x+','+coordinate.y;$('status').textContent=`${paused?'PAUSED':'SIMULATION LIVE'}  ·  YOURS ${units.filter(u=>u.team===0).length} / ALLY ${units.filter(u=>u.team===2).length} / ENEMY ${units.filter(u=>u.team===1).length}  ·  ${Math.round(zoom*100)}%`;$('selection').textContent=selected.size?selected.size+' SELECTED · DELETE TO REMOVE':'NO UNITS SELECTED';statsTimer=now}syncBaseMenuPositions();requestAnimationFrame(frame)}resize();demo();requestAnimationFrame(frame);
+ }ctx.restore();if(drag?.kind==='select'){ctx.fillStyle='#c7e88722';ctx.strokeStyle='#c7e887';let a=drag.start,b=drag.end;ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y)}if(now-lastMini>=100){lastMini=now;mc.fillStyle='#4a5838';mc.fillRect(0,0,mini.width,mini.height);drawRiverMinimap();for(let u of units){mc.fillStyle=colors[u.team];mc.fillRect(u.x/WORLD_WIDTH*mini.width,u.y/WORLD_HEIGHT*mini.height,TYPES[u.type].speed?2:5,TYPES[u.type].speed?2:5)}mc.strokeStyle='#e4efc5';mc.strokeRect((cam.x-W/zoom/2)/WORLD_WIDTH*mini.width,(cam.y-H/zoom/2)/WORLD_HEIGHT*mini.height,W/zoom/WORLD_WIDTH*mini.width,H/zoom/WORLD_HEIGHT*mini.height);}if(now-statsTimer>150){for(const u of units)if(u.production?.endsAt&&u.production.endsAt<=Date.now())delete u.production;const coordinate=mapCoordinates(world(mouse));$('coordinates').textContent=coordinate.x+','+coordinate.y;$('status').textContent=`${paused?'PAUSED':'SIMULATION LIVE'}  ·  YOURS ${units.filter(u=>u.team===0).length} / ALLY ${units.filter(u=>u.team===2).length} / ENEMY ${units.filter(u=>u.team===1).length}  ·  ${Math.round(zoom*100)}%`;$('selection').textContent=selected.size?selected.size+' SELECTED · DELETE TO REMOVE':'NO UNITS SELECTED';statsTimer=now}syncBaseMenuPositions();requestAnimationFrame(frame)}resize();demo();requestAnimationFrame(frame);
 
 $('editor-toggle').onclick=()=>{const collapsed=document.body.classList.toggle('editor-hidden');$('editor-toggle').textContent=collapsed?'☰ Sandbox editor':'✕ Close editor';$('editor-toggle').setAttribute('aria-expanded',String(!collapsed))};
 

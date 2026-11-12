@@ -1,3 +1,9 @@
+v1.16
+- Native DW5 5 river JPEG/PNG tiles and XOR bank blending replace thin painted lines.
+- Correct letter-coded de4 importer with explicit flusspos origin.
+- Seeded layouts use connected native pieces; generated rivers appear on the minimap.
+- Preserved latest units, movement, map controls and collision behaviour.
+
 v1.15
 - Fixed howitzer/Msta/Paladin turret pivots using native DW5 rendering metadata.
 - Published combat stats for all 36 units; specialised target categories, MG fallback and target preferences.
