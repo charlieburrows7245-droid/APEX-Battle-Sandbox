@@ -113,21 +113,20 @@ function spriteFrame(im,frame,x,y,count=72){if(!im?.complete||!im.naturalWidth)r
 // readable at different zoom levels without invalidating factory/base caches.
 const BASE_PLAYER_NAMES=['Player','Opponent'];
 function drawBasePlayerName(u){
+ // DW5 reference: a small, unboxed, left-aligned owner name sits above
+ // the upper-left portion of the base, not centred far above the terrain.
  const label=BASE_PLAYER_NAMES[u.team]??'Player';
- const fontSize=13/zoom, pad=8/zoom, lineHeight=23/zoom;
- const y=u.y-285/1; // Above the top edge of the base terrain.
+ const x=u.x-205,y=u.y-145;
  ctx.save();
- ctx.font='bold '+fontSize+'px Arial';
- ctx.textAlign='center';
- ctx.textBaseline='middle';
- const width=ctx.measureText(label).width+pad*2;
- ctx.fillStyle='rgba(8,16,20,.72)';
- ctx.fillRect(u.x-width/2,y-lineHeight/2,width,lineHeight);
- ctx.strokeStyle=colors[u.team]||'#ffffff';
- ctx.lineWidth=1/zoom;
- ctx.strokeRect(u.x-width/2,y-lineHeight/2,width,lineHeight);
- ctx.fillStyle='#ffffff';
- ctx.fillText(label,u.x,y);
+ ctx.font='24px Arial, sans-serif';
+ ctx.textAlign='left';
+ ctx.textBaseline='alphabetic';
+ ctx.lineJoin='round';
+ ctx.lineWidth=3;
+ ctx.strokeStyle='rgba(0,0,0,.85)';
+ ctx.strokeText(label,x,y);
+ ctx.fillStyle='#fff';
+ ctx.fillText(label,x,y);
  ctx.restore();
 }
 function drawUnit(u){if(!TYPES[u.type].speed){actualBase(u);drawBasePlayerName(u);return}const def=nativeTroops[u.type],frame=((Math.round(18-u.angle*72/(Math.PI*2))-1)%72+72)%72;ctx.save();ctx.translate(u.x,u.y);
