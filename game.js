@@ -31,12 +31,26 @@ function troopGroups(list=units){const groups=new Map();for(const u of list){if(
 function repairTroopGroups(){divisionMotion.clear();nextGroupId=units.reduce((max,u)=>Math.max(max,Number(u.groupId)||0),nextGroupId);const pending=new Map(),remap=new Map();for(const u of units){if(!TYPES[u.type]?.speed)continue;const key=(u.groupId??'legacy')+':'+u.team+':'+u.type;let batch=pending.get(key);if(!batch||batch.count>=49){batch={id:++nextGroupId,count:0,used:new Set()};pending.set(key,batch);if(!remap.has(key))remap.set(key,batch.id);}let slot=u.groupSlot;if(!Number.isInteger(slot)||slot<0||slot>=49||batch.used.has(slot)){slot=0;while(batch.used.has(slot))slot++;}batch.used.add(slot);u.groupId=batch.id;u.groupSlot=slot;batch.count++;}for(const u of units)if(u.joinOrder){const id=remap.get(u.joinOrder.groupId+':'+u.team+':'+u.type);if(id)u.joinOrder.groupId=id;else{delete u.joinOrder;u.target=null;}}}
 function expandGroupSelection(){const ids=new Set(units.filter(u=>selected.has(u.id)&&TYPES[u.type].speed).map(u=>u.groupId));for(const u of units)if(TYPES[u.type].speed&&ids.has(u.groupId))selected.add(u.id);}
 // Compact battlefield labels only; full unit names remain in menus/stats.
+// Battlefield-only abbreviations. The full name is preserved in menus.
 function shortTroopLabel(type){
  const name=TYPES[type]?.name||type;
  if(type==='tank'||/type\s*99/i.test(name))return '99c';
  if(/howitzer|haub/i.test(name))return 'haub';
  if(/pantsir|pantsyr|panzir|pansir/i.test(name))return 'psir';
- return name;
+ const known={
+  aa:'TanSAM',heli:'Apache',jet:'J-10',raptor:'F-22C',
+ };
+ if(known[type])return known[type];
+ // Compact labels for the rest of the DW5 catalogue, without guessing
+ // game-specific abbreviations: keep model codes and short unit names.
+ const words=name.replace(/\([^)]*\)/g,' ').trim().split(/\s+/);
+ const model=words.find(w=>/^(?:[A-Z]{1,5}[-\d][A-Z\d-]*|[A-Z]+\d+[A-Z\d-]*|\d+[A-Z][A-Z\d-]*)$/i.test(w));
+ if(model)return model.slice(0,12);
+ if(words.length===1)return name.length<=12?name:name.slice(0,12);
+ const generic=/^(?:fast|attack|vehicle|mobile|light|heavy|armoured|armored|self|propelled|anti|air|missile|rocket|launcher|artillery|tank|fighter|helicopter|aircraft|system)$/i;
+ const distinctive=words.filter(w=>!generic.test(w));
+ if(distinctive.length)return distinctive.join(' ').slice(0,12);
+ return words.map(w=>w[0]?.toUpperCase()||'').join('').slice(0,8);
 }
 function drawTroopGroupLabels(visible){ctx.save();ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.font='bold 12px Tahoma,Arial,sans-serif';for(const group of troopGroups()){if(!group.some(visible))continue;const x=group.reduce((sum,u)=>sum+u.x,0)/group.length,cy=group.reduce((sum,u)=>sum+u.y,0)/group.length,y=Math.min(...group.map(u=>u.y))-45;if(group.some(u=>selected.has(u.id))){const radius=Math.max(...group.map(u=>Math.abs(u.x-x)+3*Math.abs(u.y-cy)))+36;ctx.strokeStyle='#dde89b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-radius,cy);ctx.lineTo(x,cy-radius/3);ctx.lineTo(x+radius,cy);ctx.lineTo(x,cy+radius/3);ctx.closePath();ctx.stroke();}ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.9)';const first=group[0],owner=(first.playerName??BASE_PLAYER_NAMES[first.team]??'Player').toUpperCase(),label=group.length+' '+shortTroopLabel(first.type);ctx.strokeText(owner,x,y-12);ctx.strokeText(label,x,y);ctx.fillStyle=troopRelationColor(first.team);ctx.fillText(owner,x,y-12);ctx.fillText(label,x,y);}ctx.restore();}
 
