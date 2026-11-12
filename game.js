@@ -113,14 +113,14 @@ function spriteFrame(im,frame,x,y,count=72){if(!im?.complete||!im.naturalWidth)r
 // readable at different zoom levels without invalidating factory/base caches.
 const BASE_PLAYER_NAMES=['Player','Opponent'];
 function drawBasePlayerName(u){
- // DW5 airbase ('g'), configuration 3: name is 290 px below the
- // Cib(AU[a]) terrain image's top-left draw anchor (KG[3][0] = -400).
- // APEX draws its airbase terrain from local y=-250, so use that
- // artwork anchor plus DW5's measured +290. Preserve the approved X.
+ // Place the airbase owner above the small main entrance building beside
+ // the curved wall, matching the visual anchor in the DW5 reference.
+ // APEX's base is assembled differently, so use its entrance anchor.
  const label=BASE_PLAYER_NAMES[u.team]??'Player';
  const air=u.type==='airbase';
- const x=air?u.x-100:baseEntrancePoint(u).x;
- const y=air?(u.y-250)+290:baseEntrancePoint(u).y-110;
+ const entrance=baseEntrancePoint(u);
+ const x=air?entrance.x-20:entrance.x;
+ const y=entrance.y-110;
  ctx.save();
  ctx.font='24px Verdana, sans-serif';
  ctx.textAlign='start';
