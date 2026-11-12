@@ -684,53 +684,74 @@ function formationSlotAt(type,slot,heading){
 }
 // Division-level routing: inflate parked division bounds by the moving
 // formation's full half-width/height, then route the anchor around them.
-function divisionRouteGoal(motion,members,destination){
+// Plan using the full projected footprint of a formation, not individual cars.
+function divisionObstacleBoxes(motion,members){
  const air=!!nativeTroops[members[0].type]?.air;
  const offsets=members.map(v=>formationOffset(v.type,v.groupSlot??0));
- const halfX=Math.max(24,...offsets.map(p=>Math.abs(p.x)))+24;
- const halfY=Math.max(24,...offsets.map(p=>Math.abs(p.y)*3))+24;
+ const left=Math.min(0,...offsets.map(p=>p.x))-24,right=Math.max(0,...offsets.map(p=>p.x))+24;
+ const top=Math.min(0,...offsets.map(p=>p.y*3))-24,bottom=Math.max(0,...offsets.map(p=>p.y*3))+24;
+ return troopGroups(units.filter(v=>v.hp>0&&TYPES[v.type]?.speed&&v.groupId!==members[0].groupId&&!!nativeTroops[v.type]?.air===air))
+ .filter(group=>group.every(v=>!v.formationOrder&&!v.target))
+ .map(group=>{
+  const radius=v=>Math.min(38,Math.max(18,troopSpacing(v.type)*.35));
+  return{l:Math.min(...group.map(v=>v.x-radius(v)))-right,
+         r:Math.max(...group.map(v=>v.x+radius(v)))-left,
+         t:Math.min(...group.map(v=>v.y*3-radius(v)))-bottom,
+         b:Math.max(...group.map(v=>v.y*3+radius(v)))-top};
+ });
+}
+function divisionSegmentClear(a,b,boxes){
+ for(const box of boxes){
+  let enter=0,leave=1;
+  for(const [p,d,lo,hi] of [[a.x,b.x-a.x,box.l,box.r],[a.y,b.y-a.y,box.t,box.b]]){
+   if(Math.abs(d)<1e-9){if(p<=lo||p>=hi){enter=2;break;}continue;}
+   const q=(lo-p)/d,w=(hi-p)/d;
+   enter=Math.max(enter,Math.min(q,w));leave=Math.min(leave,Math.max(q,w));
+  }
+  if(enter<leave&&leave>0&&enter<1)return false;
+ }
+ return true;
+}
+function divisionRouteGoal(motion,members,destination,boxes){
  const start={x:motion.x,y:motion.y*3},end={x:destination.x,y:destination.y*3};
  const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
- const clear=(a,b,box)=>{
-  let lo=0,hi=1;
-  for(const [p,d,min,max] of [[a.x,b.x-a.x,box.l,box.r],[a.y,b.y-a.y,box.t,box.b]]){
-   if(Math.abs(d)<1e-8){if(p<min||p>max)return true;continue;}
-   const v=(min-p)/d,w=(max-p)/d;
-   lo=Math.max(lo,Math.min(v,w));hi=Math.min(hi,Math.max(v,w));
-  }
-  return lo>hi||hi<0||lo>1;
- };
- const parked=troopGroups(units.filter(v=>v.hp>0&&TYPES[v.type]?.speed&&v.groupId!==members[0].groupId&&!!nativeTroops[v.type]?.air===air))
-  .filter(group=>group.every(v=>!v.target&&!v.formationOrder));
- const boxes=parked.map(group=>{
-  const rad=v=>Math.min(38,Math.max(18,troopSpacing(v.type)*.35));
-  return{l:Math.min(...group.map(v=>v.x-rad(v)))-halfX,
-         r:Math.max(...group.map(v=>v.x+rad(v)))+halfX,
-         t:Math.min(...group.map(v=>v.y*3-rad(v)))-halfY,
-         b:Math.max(...group.map(v=>v.y*3+rad(v)))+halfY};
- });
  let route=motion.divisionRoute;
  if(route&&distance(route.destination,end)<10){
-  while(route.points.length&&distance(start,route.points[0])<16)route.points.shift();
-  if(route.points.length)return{x:route.points[0].x,y:route.points[0].y/3};
+  while(route.points.length&&distance(start,route.points[0])<18)route.points.shift();
+  if(route.points.length&&divisionSegmentClear(start,route.points[0],boxes))
+   return{x:route.points[0].x,y:route.points[0].y/3};
   motion.divisionRoute=null;
  }else motion.divisionRoute=null;
- const hit=boxes.find(b=>!clear(start,end,b)&&!(start.x>b.l&&start.x<b.r&&start.y>b.t&&start.y<b.b));
- if(!hit)return destination;
- const b=hit,m=18;
- const tl={x:b.l-m,y:b.t-m},tr={x:b.r+m,y:b.t-m};
- const bl={x:b.l-m,y:b.b+m},br={x:b.r+m,y:b.b+m};
- const paths=[[tl],[tr],[bl],[br],[tl,tr],[tr,tl],[bl,br],[br,bl],[tl,bl],[bl,tl],[tr,br],[br,tr]];
- let winner=null,score=Infinity;
- for(const path of paths){
-  const full=[start,...path,end];
-  if(full.some((p,i)=>i&&boxes.some(box=>!clear(full[i-1],p,box))))continue;
-  const cost=full.slice(1).reduce((sum,p,i)=>sum+distance(full[i],p),0);
-  if(cost<score){winner=path;score=cost;}
+ if(divisionSegmentClear(start,end,boxes))return destination;
+ // Visibility graph over expanded rectangle corners. Unlike a single corner
+ // guess, this can route around multiple formations and both sides of a box.
+ const nodes=[start,end];
+ for(const b of boxes){
+  const m=9;
+  for(const p of [{x:b.l-m,y:b.t-m},{x:b.r+m,y:b.t-m},{x:b.l-m,y:b.b+m},{x:b.r+m,y:b.b+m}]){
+   if(p.x>=0&&p.x<=WORLD_WIDTH&&p.y>=0&&p.y<=WORLD_HEIGHT*3)nodes.push(p);
+  }
  }
- if(!winner)return destination;
- motion.divisionRoute={destination:end,points:winner.map(p=>({...p}))};
- return{x:winner[0].x,y:winner[0].y/3};
+ const n=nodes.length,dist=Array(n).fill(Infinity),prev=Array(n).fill(-1),used=Array(n).fill(false);
+ dist[0]=0;
+ for(let k=0;k<n;k++){
+  let u=-1;for(let j=0;j<n;j++)if(!used[j]&&(u<0||dist[j]<dist[u]))u=j;
+  if(u<0||!Number.isFinite(dist[u])||u===1)break;
+  used[u]=true;
+  for(let v=1;v<n;v++){
+   if(used[v]||!divisionSegmentClear(nodes[u],nodes[v],boxes))continue;
+   const alt=dist[u]+distance(nodes[u],nodes[v]);
+   if(alt<dist[v]){dist[v]=alt;prev[v]=u;}
+  }
+ }
+ if(!Number.isFinite(dist[1]))return null; // Stop, never drive into another box.
+ const path=[];for(let at=1;at!==0&&at>=0;at=prev[at])path.unshift(nodes[at]);
+ motion.divisionRoute={destination:end,points:path.map(p=>({...p}))};
+ return path.length?{x:path[0].x,y:path[0].y/3}:destination;
+}
+function divisionStepSafe(before,after,boxes){
+ const a={x:before.x,y:before.y*3},b={x:after.x,y:after.y*3};
+ return divisionSegmentClear(a,b,boxes);
 }
 function updateDivisionMovement(dt){
  const active=new Set();
@@ -748,9 +769,16 @@ function updateDivisionMovement(dt){
    divisionMotion.set(id,motion);
   }
   motion.type=type;motion.groupId=id;motion._divisionAnchor=true;
-  const routeGoal=divisionRouteGoal(motion,members,order);
+  const boxes=divisionObstacleBoxes(motion,members);
+  const routeGoal=divisionRouteGoal(motion,members,order,boxes);
+  const oldAnchor={x:motion.x,y:motion.y};
   motion.target=routeGoal;
-  moveTroopWithDrift(motion,TYPES[type],dt);
+  if(routeGoal)moveTroopWithDrift(motion,TYPES[type],dt);
+  else motion.moveSpeed=0;
+  if(!divisionStepSafe(oldAnchor,motion,boxes)){
+   motion.x=oldAnchor.x;motion.y=oldAnchor.y;motion.moveSpeed=0;
+   motion.divisionRoute=null;
+  }
   const heading=motion.angle;
   let settled=!motion.target&&!motion.divisionRoute&&Math.hypot(motion.x-order.x,(motion.y-order.y)*3)<1.5;
   for(const u of members){
@@ -837,7 +865,7 @@ function moveTroopWithDrift(u,t,dt){
   const oldX=u.x,oldY=u.y;
   u.x+=Math.cos(u.travelAngle)*step;u.y+=Math.sin(u.travelAngle)*step/3;
   if(obstacles.length)keepGroundOutsideBases(u,oldX,oldY,obstacles);
-  if(!u._divisionAnchor)preventTroopPenetration(u,oldX,oldY);
+  if(!u._divisionAnchor&&!u.formationOrder)preventTroopPenetration(u,oldX,oldY);
  }
 }
 
