@@ -40,8 +40,11 @@ function shortTroopLabel(type){
  if(/^(?:LT|light\s*tank)$/i.test(name)||type==='lt')return 'LTank';
  if(/jammer/i.test(name)||type==='jammer')return 'JAM';
  if(/^(?:TD|tank\s*destroyer)$/i.test(name)||type==='td')return 'JPAN';
- if(/miss(?:ile|le)?\s*wheel\s*tank/i.test(name)||type==='mwt')return 'MWT';
+ if(/miss(?:ile|le)?\s*wheel\s*tank/i.test(name)||type==='mwt')return 'RRP';
  if(/msta/i.test(name)||type==='msta')return 'MSTA';
+ if(/leopard/i.test(name)||type==='leopard')return 'LEO';
+ if(/detector/i.test(name)||type==='detector')return 'DETEC';
+ if(/cent(?:s|urion)?/i.test(name)||type==='cents')return 'CENT';
  const known={
   aa:'TanSAM',heli:'Apache',jet:'J-10',raptor:'F-22C',
  };
