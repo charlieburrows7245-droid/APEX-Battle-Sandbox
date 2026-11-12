@@ -823,6 +823,30 @@ function divisionSegmentClear(a,b,boxes){
  }
  return true;
 }
+// Find the nearest feasible anchor to the actual click, accounting for
+// the moving division's full footprint (boxes are already Minkowski-expanded).
+function divisionClosestDestination(motion,destination,boxes){
+ const target={x:destination.x,y:destination.y*3};
+ const free=p=>p.x>=0&&p.x<=WORLD_WIDTH&&p.y>=0&&p.y<=WORLD_HEIGHT*3&&
+  !boxes.some(b=>p.x>b.l&&p.x<b.r&&p.y>b.t&&p.y<b.b);
+ if(free(target))return destination;
+ let best=null,bestDist=Infinity;
+ // Candidate points immediately outside each obstacle, plus radial samples.
+ const candidates=[];
+ for(const b of boxes){
+  for(const x of [b.l-12,b.r+12])for(const y of [b.t-12,b.b+12,target.y])candidates.push({x,y});
+  for(const y of [b.t-12,b.b+12])candidates.push({x:target.x,y});
+ }
+ for(const radius of [16,32,64,96,144,200,280,400,600,900]){
+  for(let i=0;i<32;i++){const a=i*Math.PI/16;candidates.push({x:target.x+Math.cos(a)*radius,y:target.y+Math.sin(a)*radius});}
+ }
+ for(const p of candidates){
+  if(!free(p))continue;
+  const d=Math.hypot(p.x-target.x,p.y-target.y);
+  if(d<bestDist){best=p;bestDist=d;}
+ }
+ return best?{x:best.x,y:best.y/3}:null;
+}
 function divisionRouteGoal(motion,members,destination,boxes){
  const start={x:motion.x,y:motion.y*3},end={x:destination.x,y:destination.y*3};
  const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -890,7 +914,9 @@ function updateDivisionMovement(dt){
    motion.moveSpeed=0;
    motion.target=null;
   }else{
-   const routeGoal=divisionRouteGoal(motion,members,order,boxes);
+   const closest=divisionClosestDestination(motion,order,boxes);
+   motion.resolvedGoal=closest;
+   const routeGoal=closest?divisionRouteGoal(motion,members,closest,boxes):null;
    motion.target=routeGoal;
    if(routeGoal)moveTroopWithDrift(motion,TYPES[type],dt);
    else motion.moveSpeed=0;
@@ -900,7 +926,7 @@ function updateDivisionMovement(dt){
    motion.divisionRoute=null;
   }
   const heading=motion.angle;
-  let settled=!motion.target&&!motion.divisionRoute&&Math.hypot(motion.x-order.x,(motion.y-order.y)*3)<1.5;
+  let settled=!yielding.has(id)&&!!motion.resolvedGoal&&!motion.divisionRoute&&Math.hypot(motion.x-motion.resolvedGoal.x,(motion.y-motion.resolvedGoal.y)*3)<1.5;
   for(const u of members){
    u.formationOrder={x:order.x,y:order.y};
    const offset=formationSlotAt(type,u.groupSlot,heading);
