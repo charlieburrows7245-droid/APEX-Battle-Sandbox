@@ -610,14 +610,16 @@ const riverGenerateButton=document.getElementById('terrain-generate');
 if(riverGenerateButton)riverGenerateButton.addEventListener('click',()=>{
  riverSeed=(riverSeed+1)>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));
  importedRiverSegments=[];localStorage.removeItem('apexDw5River');generateDw5StyleRivers();
- notice('Generated river · seed '+riverSeed);
+ notice('Generated river with '+riverLayouts[0].bridges+' bridges · seed '+riverSeed);
 });
 function activeRiverPieces(){return importedRiverSegments.length?importedRiverSegments:generatedRiverSegments;}
 function drawGeneratedRivers(){
  ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);
  ctx.beginPath();ctx.rect(0,0,WORLD_WIDTH,WORLD_HEIGHT);ctx.clip();
  const left=cam.x-W/(2*zoom),right=cam.x+W/(2*zoom),top=cam.y-H/(2*zoom),bottom=cam.y+H/(2*zoom);
- for(const piece of activeRiverPieces()){
+ const pieces=activeRiverPieces();
+ for(let pass=0;pass<2;pass++)for(const piece of pieces){
+  if((piece.type>=16)!==(pass===1))continue; // Bridge decks remain above neighbouring bank tiles.
   if(piece.left+1500<left||piece.left>right||piece.top+500<top||piece.top>bottom)continue;
   const im=riverArt.get(piece.image),overlay=riverOverlay.get(piece.image);
   if(!im?.masked)continue;
@@ -629,10 +631,10 @@ function drawGeneratedRivers(){
 function drawRiverMinimap(){
  mc.save();mc.strokeStyle='#365a70';mc.lineWidth=1;
  for(const piece of activeRiverPieces()){
-  if(piece.type>=16)continue;
-  const nextX=piece.x+[-30,230,630,1100,1100,1100,870,540,30,-230,-630,-1100,-1100,-1100,-870,-540][piece.type];
-  const nextY=piece.y+[300,300,300,180,-60,-200,-300,-300,-300,-300,-300,-180,60,200,300,300][piece.type];
+  const nextX=piece.x+[-30,230,630,1100,1100,1100,870,540,30,-230,-630,-1100,-1100,-1100,-870,-540,-470,1100,470,-1100][piece.type];
+  const nextY=piece.y+[300,300,300,180,-60,-200,-300,-300,-300,-300,-300,-180,60,200,300,300,300,-90,-300,90][piece.type];
   mc.beginPath();mc.moveTo(piece.x/WORLD_WIDTH*mini.width,piece.y/WORLD_HEIGHT*mini.height);mc.lineTo(nextX/WORLD_WIDTH*mini.width,nextY/WORLD_HEIGHT*mini.height);mc.stroke();
+  if(piece.type>=16){const x=(piece.left+750)/WORLD_WIDTH*mini.width,y=(piece.top+250)/WORLD_HEIGHT*mini.height,horizontal=piece.image===9;mc.save();mc.strokeStyle='#d6b487';mc.lineWidth=2;mc.beginPath();mc.moveTo(x-(horizontal?3:0),y-(horizontal?0:3));mc.lineTo(x+(horizontal?3:0),y+(horizontal?0:3));mc.stroke();mc.restore();}
  }
  mc.restore();
 }

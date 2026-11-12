@@ -1,3 +1,7 @@
+v1.16.4
+- River always starts at the top; bends and exit edges vary.
+- Generate one to three spaced native DW5 bridge crossings, rendered above banks and marked on the minimap.
+
 v1.16.2
 - Exactly one river with varied entry/exit edges, including same-edge U-shaped bends.
 - Removed the forced top-to-bottom direction and added seed variation.

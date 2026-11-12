@@ -36,6 +36,7 @@
    px-=dy/length*ripple;py+=dx/length*ripple;waypoints.push({x:px,y:py});
   }
   let x=entry.x,y=entry.y,heading=[0,12,8,4][entryEdge],codes='',targetIndex=0;
+  const desiredBridges=1+Math.floor(random()*3);let bridges=0,lastBridge=null;
   const projectedDistance=(a,b)=>Math.hypot(a.x-b.x,3*(a.y-b.y));
   const outsideExit=()=>exitEdge===0?y<0:exitEdge===1?x>width:exitEdge===2?y>height:x<0;
   for(let k=0;k<Math.ceil((width+height)*4/180)+100;k++){
@@ -48,9 +49,19 @@
     const error=Math.abs(Math.atan2(Math.sin(angle-desired),Math.cos(angle-desired)));
     if(error<best){best=error;next=type;}
    }
-   heading=next;codes+=String.fromCharCode(97+heading);x+=DX[heading];y+=DY[heading];
+   heading=next;let piece=heading;
+   const bridgeType={0:16,4:17,8:18,12:19}[heading];
+   const inside=x>2000&&x<width-2000&&y>2000&&y<height-2000;
+   const spaced=!lastBridge||projectedDistance({x,y},lastBridge)>Math.min(width,height)*.18;
+   if(bridgeType!==undefined&&inside&&spaced&&bridges<desiredBridges){piece=bridgeType;bridges++;lastBridge={x,y};}
+   codes+=String.fromCharCode(97+piece);x+=DX[piece];y+=DY[piece];
   }
-  return[{encoded:codes,startX:entry.x,startY:entry.y,entryEdge,exitEdge}];
+  // Guarantee a native crossing even on short or predominantly diagonal paths.
+  if(!bridges){const list=Array.from(codes),nodes=decodeLayout(codes,entry.x,entry.y);
+   const index=nodes.findIndex(p=>[0,4,8,12].includes(p.type)&&p.x>1500&&p.x<width-1500&&p.y>1000&&p.y<height-1000);
+   if(index>=0){list[index]=String.fromCharCode(97+({0:16,4:17,8:18,12:19}[nodes[index].type]));codes=list.join('');bridges=1;}
+  }
+  return[{encoded:codes,startX:entry.x,startY:entry.y,entryEdge,exitEdge,bridges}];
  }
 
  root.Dw5Rivers=Object.freeze({decodeLayout,seededLayout});
