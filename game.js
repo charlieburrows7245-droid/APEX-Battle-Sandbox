@@ -345,31 +345,67 @@ function drawTargetUnitHealth(u){
 // displaced by another division: unlike a physics push, this preserves formations.
 // Route moving troops around the entire footprint of a stationary division.
 // All geometry uses screen-projected coordinates (Y * 3), matching vehicle spacing.
+// Static divisions are obstacles, never objects to push. Work in projected
+// screen coordinates so route clearance matches the visible troop spacing.
 function troopPathGoal(u,goal){
- const air=!!nativeTroops[u.type]?.air,dx=goal.x-u.x,dy=(goal.y-u.y)*3,len=Math.hypot(dx,dy);
- if(len<.01)return goal;
+ const air=!!nativeTroops[u.type]?.air;
+ const sx=u.x,sy=u.y*3,gx=goal.x,gy=goal.y*3;
  const radius=v=>Math.min(38,Math.max(18,troopSpacing(v.type)*.35));
- const others=units.filter(v=>v!==u&&v.hp>0&&TYPES[v.type]?.speed&&v.groupId!==u.groupId&&!!nativeTroops[v.type]?.air===air);
- // Reuse a detour while it remains necessary; do not recalculate its side every frame.
- if(u.troopDetour){
-  const p=u.troopDetour,dist=Math.hypot(p.x-u.x,(p.y-u.y)*3);
-  if(dist>8&&Math.hypot(p.destination.x-goal.x,(p.destination.y-goal.y)*3)<15)return p.waypoint;
+ const pointDistance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+ const pos={x:sx,y:sy},dest={x:gx,y:gy};
+ const clearLine=(a,b,rect)=>{
+  let enter=0,exit=1;
+  for(const [p,d,lo,hi] of [[a.x,b.x-a.x,rect.l,rect.r],[a.y,b.y-a.y,rect.t,rect.b]]){
+   if(Math.abs(d)<1e-8){if(p<lo||p>hi)return true;continue;}
+   const v=(lo-p)/d,w=(hi-p)/d;
+   enter=Math.max(enter,Math.min(v,w));exit=Math.min(exit,Math.max(v,w));
+  }
+  return enter>exit||exit<0||enter>1;
+ };
+ // Continue the selected route instead of switching sides every frame.
+ const saved=u.troopDetour;
+ if(saved&&pointDistance(saved.destination,dest)<12){
+  while(saved.points.length&&pointDistance(pos,saved.points[0])<14)saved.points.shift();
+  if(saved.points.length)return{x:saved.points[0].x,y:saved.points[0].y/3};
   u.troopDetour=null;
+ }else u.troopDetour=null;
+ const groups=troopGroups(units.filter(v=>v.hp>0&&TYPES[v.type]?.speed&&v.groupId!==u.groupId&&!!nativeTroops[v.type]?.air===air));
+ let hit=null,bestDistance=Infinity;
+ for(const members of groups){
+  // Only parked formations become fixed obstacles. Moving formations keep
+  // their own destinations; penetration protection prevents interpenetration.
+  if(members.some(v=>v.target||v.formationOrder||(v.moveSpeed||0)>.1))continue;
+  const pad=radius(u)+12;
+  const rect={
+   l:Math.min(...members.map(v=>v.x-radius(v)))-pad,
+   r:Math.max(...members.map(v=>v.x+radius(v)))+pad,
+   t:Math.min(...members.map(v=>v.y*3-radius(v)))-pad,
+   b:Math.max(...members.map(v=>v.y*3+radius(v)))+pad
+  };
+  if(clearLine(pos,dest,rect))continue;
+  // If an old scenario starts inside a footprint, let it leave first.
+  if(sx>rect.l&&sx<rect.r&&sy>rect.t&&sy<rect.b)continue;
+  const d=Math.hypot(Math.max(rect.l-sx,0,sx-rect.r),Math.max(rect.t-sy,0,sy-rect.b));
+  if(d<bestDistance){bestDistance=d;hit=rect;}
  }
- let blocker=null,first=Infinity;
- for(const v of others){
-  const vx=v.x-u.x,vy=(v.y-u.y)*3,t=Math.max(0,Math.min(1,(vx*dx+vy*dy)/(len*len)));
-  const px=vx-t*dx,py=vy-t*dy,clearance=radius(u)+radius(v)+6;
-  if(px*px+py*py>=clearance*clearance)continue;
-  const along=t*len;if(along<first){first=along;blocker=v;}
+ if(!hit)return goal;
+ const b=hit,m=16;
+ const tl={x:b.l-m,y:b.t-m},tr={x:b.r+m,y:b.t-m};
+ const bl={x:b.l-m,y:b.b+m},br={x:b.r+m,y:b.b+m};
+ // Route via corners, optionally across an edge. Each segment must remain
+ // outside the stationary footprint, including the final approach.
+ const paths=[[tl],[tr],[bl],[br],[tl,tr],[tr,tl],[bl,br],[br,bl],
+              [tl,bl],[bl,tl],[tr,br],[br,tr]];
+ let winner=null,score=Infinity;
+ for(const path of paths){
+  const full=[pos,...path,dest];
+  if(full.some((p,i)=>i&& !clearLine(full[i-1],p,b)))continue;
+  const cost=full.slice(1).reduce((sum,p,i)=>sum+pointDistance(full[i],p),0);
+  if(cost<score){score=cost;winner=path;}
  }
- if(!blocker)return goal;
- const bx=blocker.x-u.x,by=(blocker.y-u.y)*3,side=Math.sign(dx*by-dy*bx)||((u.id%2)?1:-1);
- const clearance=radius(u)+radius(blocker)+14;
- const perpX=-dy/len*side,perpY=dx/len*side;
- const waypoint={x:Math.max(0,Math.min(WORLD_WIDTH,blocker.x+perpX*clearance+dx/len*clearance*.55)),y:Math.max(0,Math.min(WORLD_HEIGHT,blocker.y+(perpY*clearance+dy/len*clearance*.55)/3))};
- u.troopDetour={destination:{...goal},waypoint};
- return waypoint;
+ if(!winner)return goal; // Never deadlock ordinary movement if no safe detour exists.
+ u.troopDetour={destination:dest,points:winner.map(p=>({...p}))};
+ return{x:winner[0].x,y:winner[0].y/3};
 }
 function preventTroopPenetration(u,oldX,oldY){
  const air=!!nativeTroops[u.type]?.air;
