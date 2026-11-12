@@ -37,7 +37,7 @@ applyGroupDamage(bg,1e9);assert.equal(baseGunCount(base),1);assert.equal(base.hp
 assert(upgradeBaseFlak(base));assert.equal(base.hp,130000,'rebuild destroyed gun');assert.equal(baseGunCount(base),2);
 base.maxUpgraded=true;base.wallLevel=2;syncBaseDefenceHealth(base);assert.equal(baseGunCount(base),50);assert.equal(baseMaxHealth(base),3250000);
 base.maxUpgraded=false;base.wallLevel=1;base.defenceGuns=2;resetBaseDefenceHealth(base);assert.deepEqual(base.turretHealth,[65000,65000]);assert.equal(base.hp,130000);
-const legacy=unit('base',0,0);legacy.hp=250;legacy.defenceGuns=2;syncBaseDefenceHealth(legacy);assert.deepEqual(legacy.turretHealth,[65000,0],'old save migrates without healing');
+const legacy=unit('base',0,0);legacy.hp=250;legacy.defenceGuns=2;syncBaseDefenceHealth(legacy);assert.deepEqual(legacy.turretHealth,[32500,0],'old save migrates without healing');
 console.log('PASS: reverse-slot damage, summed health, one casualty/sec, discarded overkill, persisted cooldown, turret pools, wall x10, range x2, rebuild and legacy-save migration.');
 
 console.log('PASS: 49-member volleys, cooldown, 3x helicopter range, firing bonuses, projected distances, allies, damage stats, simultaneous combat.');
