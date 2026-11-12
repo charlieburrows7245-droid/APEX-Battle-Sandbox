@@ -680,6 +680,56 @@ function formationSlotAt(type,slot,heading){
  // destination around the anchor or cause a helicopter orbit feedback loop.
  return formationOffset(type,slot);
 }
+// Division-level routing: inflate parked division bounds by the moving
+// formation's full half-width/height, then route the anchor around them.
+function divisionRouteGoal(motion,members,destination){
+ const air=!!nativeTroops[members[0].type]?.air;
+ const offsets=members.map(v=>formationOffset(v.type,v.groupSlot??0));
+ const halfX=Math.max(24,...offsets.map(p=>Math.abs(p.x)))+24;
+ const halfY=Math.max(24,...offsets.map(p=>Math.abs(p.y)*3))+24;
+ const start={x:motion.x,y:motion.y*3},end={x:destination.x,y:destination.y*3};
+ const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+ const clear=(a,b,box)=>{
+  let lo=0,hi=1;
+  for(const [p,d,min,max] of [[a.x,b.x-a.x,box.l,box.r],[a.y,b.y-a.y,box.t,box.b]]){
+   if(Math.abs(d)<1e-8){if(p<min||p>max)return true;continue;}
+   const v=(min-p)/d,w=(max-p)/d;
+   lo=Math.max(lo,Math.min(v,w));hi=Math.min(hi,Math.max(v,w));
+  }
+  return lo>hi||hi<0||lo>1;
+ };
+ const parked=troopGroups(units.filter(v=>v.hp>0&&TYPES[v.type]?.speed&&v.groupId!==members[0].groupId&&!!nativeTroops[v.type]?.air===air))
+  .filter(group=>group.every(v=>!v.target&&!v.formationOrder));
+ const boxes=parked.map(group=>{
+  const rad=v=>Math.min(38,Math.max(18,troopSpacing(v.type)*.35));
+  return{l:Math.min(...group.map(v=>v.x-rad(v)))-halfX,
+         r:Math.max(...group.map(v=>v.x+rad(v)))+halfX,
+         t:Math.min(...group.map(v=>v.y*3-rad(v)))-halfY,
+         b:Math.max(...group.map(v=>v.y*3+rad(v)))+halfY};
+ });
+ let route=motion.divisionRoute;
+ if(route&&distance(route.destination,end)<10){
+  while(route.points.length&&distance(start,route.points[0])<16)route.points.shift();
+  if(route.points.length)return{x:route.points[0].x,y:route.points[0].y/3};
+  motion.divisionRoute=null;
+ }else motion.divisionRoute=null;
+ const hit=boxes.find(b=>!clear(start,end,b)&&!(start.x>b.l&&start.x<b.r&&start.y>b.t&&start.y<b.b));
+ if(!hit)return destination;
+ const b=hit,m=18;
+ const tl={x:b.l-m,y:b.t-m},tr={x:b.r+m,y:b.t-m};
+ const bl={x:b.l-m,y:b.b+m},br={x:b.r+m,y:b.b+m};
+ const paths=[[tl],[tr],[bl],[br],[tl,tr],[tr,tl],[bl,br],[br,bl],[tl,bl],[bl,tl],[tr,br],[br,tr]];
+ let winner=null,score=Infinity;
+ for(const path of paths){
+  const full=[start,...path,end];
+  if(full.some((p,i)=>i&&boxes.some(box=>!clear(full[i-1],p,box))))continue;
+  const cost=full.slice(1).reduce((sum,p,i)=>sum+distance(full[i],p),0);
+  if(cost<score){winner=path;score=cost;}
+ }
+ if(!winner)return destination;
+ motion.divisionRoute={destination:end,points:winner.map(p=>({...p}))};
+ return{x:winner[0].x,y:winner[0].y/3};
+}
 function updateDivisionMovement(dt){
  const active=new Set();
  for(const members of troopGroups()){
@@ -695,7 +745,9 @@ function updateDivisionMovement(dt){
    motion={x:mid(anchors.map(p=>p.x)),y:mid(anchors.map(p=>p.y)),angle:heading,travelAngle:heading,moveSpeed:0,target:null};
    divisionMotion.set(id,motion);
   }
-  motion.type=type;motion.target={x:order.x,y:order.y};
+  motion.type=type;motion.groupId=id;motion._divisionAnchor=true;
+  const routeGoal=divisionRouteGoal(motion,members,order);
+  motion.target=routeGoal;
   moveTroopWithDrift(motion,TYPES[type],dt);
   const heading=motion.angle;
   let settled=!motion.target;
@@ -766,7 +818,7 @@ function moveTroopWithDrift(u,t,dt){
  for(let remaining=dt;remaining>0&&u.target;){
   const h=Math.min(remaining,1/120);remaining-=h;
   const baseGoal=obstacles.length?groundMoveGoal(u,u.target,obstacles):u.target;
-  const goalPoint=troopPathGoal(u,baseGoal);
+  const goalPoint=u._divisionAnchor?baseGoal:troopPathGoal(u,baseGoal);
   const dx=goalPoint.x-u.x,dy=(goalPoint.y-u.y)*3,d=Math.hypot(dx,dy);
   if(d<=.75){if(goalPoint!==u.target){u.baseDetour=null;continue;}u.x=u.target.x;u.y=u.target.y;u.target=null;u.moveSpeed=0;break;}
   const goal=Math.atan2(dy,dx),acceleration=t.speed*3;
@@ -783,7 +835,7 @@ function moveTroopWithDrift(u,t,dt){
   const oldX=u.x,oldY=u.y;
   u.x+=Math.cos(u.travelAngle)*step;u.y+=Math.sin(u.travelAngle)*step/3;
   if(obstacles.length)keepGroundOutsideBases(u,oldX,oldY,obstacles);
-  preventTroopPenetration(u,oldX,oldY);
+  if(!u._divisionAnchor)preventTroopPenetration(u,oldX,oldY);
  }
 }
 
