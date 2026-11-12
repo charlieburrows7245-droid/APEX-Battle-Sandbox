@@ -59,7 +59,14 @@ function buildingSprite(name,level,x,y,w,h,frames=10){let im=dwArt[name];if(!im?
 // for depth sorting, then the wall foreground is drawn over gun bases.
 const DW5_DEFENCE={"x":[[50,-50,90,-64,130,-77,170,-90,210,-102,250,-114,290,-125,330,-136,70,-30,110,-40,150,-49,190,-58,230,-66,270,-74,310,-81,90,-10,130,-16,170,-22,210,-27,250,-32,290,-36,110,10,150,7,190,4,230,2],[-50,50,-90,64,-130,77,-170,90,-210,102,-250,114,-290,125,-330,136,-70,30,-110,40,-150,49,-190,58,-230,66,-270,74,-310,81,-90,10,-130,16,-170,22,-210,27,-250,32,-290,36,-110,-10,-150,-7,-190,-4,-230,-2],[50,-50,90,-90,130,-130,170,-170,210,-210,250,-250,290,-290,330,-330,70,-70,110,-110,150,-150,190,-190,230,-230,270,-270,310,-310,90,-90,130,-130,170,-170,210,-210,250,-250,290,-290,110,-110,150,-150,190,-190,230,-230],[-50,50,-90,64,-130,77,-170,90,-210,102,-250,114,-290,125,-330,136,-70,30,-110,40,-150,49,-190,58,-230,66,-270,74,-310,81,-90,10,-130,16,-170,22,-210,27,-250,32,-290,36,-110,-10,-150,-7,-190,-4,-230,-2]],"y":[[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230],[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230],[120,120,115,115,110,110,105,105,100,100,95,95,90,90,85,85,90,90,85,85,80,80,75,75,70,70,65,65,60,60,60,60,55,55,50,50,45,45,40,40,35,35,30,30,25,25,20,20,15,15],[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230]]};
 function baseGunCount(u){return Array.isArray(u.turretHealth)?u.turretHealth.filter(h=>h>0).length:baseGunCapacity(u);}
-function upgradeBaseFlak(u){syncBaseDefenceHealth(u);const missing=u.turretHealth.findIndex(h=>h<=0);if(missing>=0){u.turretHealth[missing]=turretMaxHealth(u);syncBaseDefenceHealth(u);return true;}const level=baseGunCapacity(u);if(level>=50)return false;u.defenceGuns=level+1;syncBaseDefenceHealth(u);return true;}
+function upgradeBaseFlak(u){syncBaseDefenceHealth(u);const missing=u.turretHealth.findIndex(h=>h<=0);if(missing>=0){u.turretHealth[missing]=turretMaxHealth(u);syncBaseDefenceHealth(u);return true;}const level=baseGunCapacity(u);if(level>=50)return false;// DW5 upgrade behaviour: move the currently damaged turret's remaining VF
+ // to the newly built slot, restoring that original slot to full health.
+ const damaged=u.turretHealth.findIndex(h=>h>0&&h<turretMaxHealth(u));
+ const inherited=damaged>=0?u.turretHealth[damaged]:turretMaxHealth(u);
+ if(damaged>=0)u.turretHealth[damaged]=turretMaxHealth(u);
+ u.defenceGuns=level+1;syncBaseDefenceHealth(u);
+ u.turretHealth[u.turretHealth.length-1]=inherited;
+ u.hp=u.turretHealth.reduce((sum,h)=>sum+h,0);return true;}
 function drawStarterDefences(u,air){ctx.save();const orientation=air?3:1,ax=air?510:450,ay=air?150:130,maxed=true;const gun=dwArt['flak.png'];const health=u.turretHealth??[];if(gun.complete&&gun.naturalWidth){for(let j=health.length-1;j>=0;j--){if(!(health[j]>0))continue;const x=ax+DW5_DEFENCE.x[orientation][j],y=ay+DW5_DEFENCE.y[orientation][j]/3;const frame=idleTurretFrame(u,j,last);drawSmoothTurret(gun,frame,x,y)}}const front=dwArt[maxed?'mauer2b.png':'mauer1a.png'],side=dwArt[maxed?'mauer2d.png':'mauer1d.png'];if(true){if(front.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+(maxed?10:20));if(side.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-(maxed?180:170))}ctx.restore()}
 // Native factory stages 0..9 use one sprite; stages 10..19 add a second
 // sprite at the offsets used by DW5's base renderer.
@@ -570,6 +577,21 @@ function shotDamage(attacker,target){
  const armour=COMBAT_STATS[target.type]?.armor??100;
  return firepower/armour*TYPES[target.type].hp/100;
 }
+// A base locks onto the first individual troop entering its firing radius.
+// When that troop dies, acquire another eligible troop at random.
+function baseTargetUnit(base,groups){
+ const owner=base.members[0],radius=weaponRange(base);
+ const candidates=groups.filter(g=>TYPES[g.type].speed&&!friendlyTeams(base.team,g.team))
+  .flatMap(g=>g.members.filter(u=>u.hp>0&&Math.hypot(u.x-base.x,(u.y-base.y)*3)<=radius));
+ if(!candidates.length){owner.baseTargetId=null;return null;}
+ let target=candidates.find(u=>u.id===owner.baseTargetId);
+ if(!target){
+  if(owner.baseTargetId==null){target=candidates.reduce((best,u)=>!best||Math.hypot(u.x-base.x,(u.y-base.y)*3)<Math.hypot(best.x-base.x,(best.y-base.y)*3)?u:best,null);}
+  else target=candidates[Math.floor(Math.random()*candidates.length)];
+  owner.baseTargetId=target.id;
+ }
+ return target;
+}
 function updateDivisionCombat(dt){
  combatClock+=dt;for(const u of units)u.casualtyCooldown=Math.max(0,(Number(u.casualtyCooldown)||0)-dt);shots.forEach(s=>s.life-=dt);shots=shots.filter(s=>s.life>0);
  const groups=combatGroups(),damage=[],liveKeys=new Set();
@@ -577,9 +599,11 @@ function updateDivisionCombat(dt){
  for(const g of groups){
   liveKeys.add(g.key);const cooldown=Math.max(0,(combatCooldowns.get(g.key)??0)-dt);combatCooldowns.set(g.key,cooldown);
   if(!(COMBAT_STATS[g.type]?.firepower??TYPES[g.type].damage))continue;
-  let target=null,best=Infinity,priority=-1;
+  const baseVictim=!TYPES[g.type].speed?baseTargetUnit(g,groups):null;
+  let target=baseVictim?groups.find(other=>other.members.includes(baseVictim)):null,best=Infinity,priority=-1;
   for(const other of groups){
    if(friendlyTeams(g.team,other.team))continue;
+   if(baseVictim)continue; // Keep all base turrets focused on the locked troop.
    const d=combatDistance(g,other);if(d>weaponRange(g,other))continue;
    const p=g.type==='aa'&&other.type==='heli'?1:0;
    if(p>priority||(p===priority&&d<best)){target=other;best=d;priority=p;}
@@ -588,11 +612,11 @@ function updateDivisionCombat(dt){
   for(const u of g.members){u.aimAngle=Math.atan2((target.y-u.y)*3,target.x-u.x);u.aimUntil=last+1000;}
   if(cooldown>0)continue;
   combatCooldowns.set(g.key,CASUALTY_INTERVAL); // One volley per simulation second, aligned with casualty eligibility.
-  const victim=target.members.reduce((a,b)=>(b.groupSlot??0)>(a.groupSlot??0)?b:a);
+  const victim=baseVictim??target.members.reduce((a,b)=>(b.groupSlot??0)>(a.groupSlot??0)?b:a);
   const shooters=TYPES[g.type].speed?g.members:Array.from({length:baseGunCount(g.members[0])},()=>g.members[0]);
   for(const u of shooters){
    const amount=shotDamage(u,victim);
-   damage.push({target,attacker:g.key,amount});combatFiredAt.set(u,combatClock);
+   damage.push({target,attacker:g.key,amount,victimId:baseVictim?.id});combatFiredAt.set(u,combatClock);
    const kind=COMBAT_STATS[u.type]?.sound??'mg';
    shots.push({x:TYPES[u.type].speed?u.x:g.x,y:TYPES[u.type].speed?u.y:g.y,tx:TYPES[victim.type].speed?victim.x:target.x,ty:TYPES[victim.type].speed?victim.y:target.y,life:.18,total:.18,kind});
    u.aimAngle=Math.atan2((victim.y-u.y)*3,victim.x-u.x);
@@ -605,7 +629,22 @@ function updateDivisionCombat(dt){
  // independently. Two lethal divisions can therefore kill two defenders.
  const volleys=new Map();
  for(const hit of damage){const key=hit.attacker+'>'+hit.target.key;const prev=volleys.get(key);if(prev)prev.amount+=hit.amount;else volleys.set(key,{...hit});}
- for(const hit of volleys.values())applyAttackerVolley(hit.target,hit.amount,hit.attacker);
+ for(const hit of volleys.values()){
+  if(hit.victimId!=null&&TYPES[hit.target.type].speed){
+   const victim=hit.target.members.find(u=>u.id===hit.victimId&&u.hp>0);
+   if(!victim)continue;
+   victim.lastUnderFireAt=combatClock;
+   const key=hit.attacker+'>'+hit.target.key;
+   const previous=attackerCasualtyTimes.get(key);
+   const canKill=previous===undefined||combatClock-previous>=CASUALTY_INTERVAL-1e-8;
+   if(!canKill)continue;
+   // DW5 base firepower is in VF; troops in this sandbox use 100 HP
+   // for Apache, so translate the VF hit proportionally (65000 VF/unit).
+   const scaled=hit.amount*TYPES[victim.type].hp/TURRET_HP;
+   victim.hp=Math.max(0,victim.hp-scaled);
+   if(victim.hp===0){attackerCasualtyTimes.set(key,combatClock);queueCombatSound('explo',victim.x,victim.y);}
+  }else applyAttackerVolley(hit.target,hit.amount,hit.attacker);
+ }
  for(const u of units)if(u.hp<=0){selected.delete(u.id);}
  units=units.filter(u=>u.hp>0);
  for(const key of combatCooldowns.keys())if(!liveKeys.has(key))combatCooldowns.delete(key);
