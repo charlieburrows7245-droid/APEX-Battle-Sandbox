@@ -750,7 +750,7 @@ function updateDivisionMovement(dt){
   motion.target=routeGoal;
   moveTroopWithDrift(motion,TYPES[type],dt);
   const heading=motion.angle;
-  let settled=!motion.target;
+  let settled=!motion.target&&!motion.divisionRoute&&Math.hypot(motion.x-order.x,(motion.y-order.y)*3)<1.5;
   for(const u of members){
    u.formationOrder={x:order.x,y:order.y};
    const offset=formationSlotAt(type,u.groupSlot,heading);
