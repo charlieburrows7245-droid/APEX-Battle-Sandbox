@@ -133,6 +133,23 @@ function buildingSprite(name,level,x,y,w,h,frames=10){let im=dwArt[name];if(!im?
 // Native DW5 Wj/AC arrays. AC is projected by KE=3; gun order is reversed
 // for depth sorting, then the wall foreground is drawn over gun bases.
 const DW5_DEFENCE={"x":[[50,-50,90,-64,130,-77,170,-90,210,-102,250,-114,290,-125,330,-136,70,-30,110,-40,150,-49,190,-58,230,-66,270,-74,310,-81,90,-10,130,-16,170,-22,210,-27,250,-32,290,-36,110,10,150,7,190,4,230,2],[-50,50,-90,64,-130,77,-170,90,-210,102,-250,114,-290,125,-330,136,-70,30,-110,40,-150,49,-190,58,-230,66,-270,74,-310,81,-90,10,-130,16,-170,22,-210,27,-250,32,-290,36,-110,-10,-150,-7,-190,-4,-230,-2],[50,-50,90,-90,130,-130,170,-170,210,-210,250,-250,290,-290,330,-330,70,-70,110,-110,150,-150,190,-190,230,-230,270,-270,310,-310,90,-90,130,-130,170,-170,210,-210,250,-250,290,-290,110,-110,150,-150,190,-190,230,-230],[-50,50,-90,64,-130,77,-170,90,-210,102,-250,114,-290,125,-330,136,-70,30,-110,40,-150,49,-190,58,-230,66,-270,74,-310,81,-90,10,-130,16,-170,22,-210,27,-250,32,-290,36,-110,-10,-150,-7,-190,-4,-230,-2]],"y":[[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230],[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230],[120,120,115,115,110,110,105,105,100,100,95,95,90,90,85,85,90,90,85,85,80,80,75,75,70,70,65,65,60,60,60,60,55,55,50,50,45,45,40,40,35,35,30,30,25,25,20,20,15,15],[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230]]};
+// Native orientation-2 offsets, relative to the centre of berg3.jpg.
+// FD[2][0]=-765, KG[2][0]=-380; terrain centre adds (750,250).
+function baseDefenceLayout(u){return u.type==='helibase'?{orientation:2,ax:15,ay:130}:u.type==='airbase'?{orientation:3,ax:510,ay:150}:{orientation:1,ax:450,ay:130};}
+function helibaseFactoryOffsets(){return{concrete:[210,50],steel:[310,-30],carbon:[-25,-45],fuel:[-285,-20]};}
+function drawHelibase(u){
+ const picture=name=>{const im=dwArt[name];if(im?.complete&&im.naturalWidth)ctx.drawImage(im,4-im.naturalWidth/2,76-im.naturalHeight/2);};
+ picture('hangar1a.png');
+ const points=helibaseFactoryOffsets();for(const [key,name]of Object.entries({concrete:'g0.png',steel:'g1.png',carbon:'g2.png',fuel:'g3.png'})){const [x,y]=points[key];nativeFactory(name,factoryStage(u,key),x,y);}
+ picture('hangar1b.png');
+ const up=u.specialUpgrades??{},level=(key,max)=>u.maxUpgraded?max:Number(up[key]||0);
+ const building=(name,n,frames,x,y)=>{if(n>0)nativeBuilding(name,Math.min(frames-1,n-1),frames,x,y);};
+ building('g4.png',level('command',5),5,-135,15);
+ const central=u.maxUpgraded?10:Number(u.militaryCentralLevel||0);building('g5.png',central,5,115,-100);building('g7.png',central-5,5,65,-70);
+ building('g6.png',level('ministry',6),6,-235,70);building('g8.png',level('group',3),3,15,210);building('g9.png',level('office',3),3,-235,110);
+ const fixed=(key,name,x,y)=>{if(u.maxUpgraded||up[key]){const im=dwArt[name];if(im?.complete&&im.naturalWidth)ctx.drawImage(im,x-im.naturalWidth/2,y-im.naturalHeight/2);}};
+ fixed('radar','radarturm1.png',-86,56);fixed('jammer','jammerturm.png',94,56);fixed('detector','detec1.png',34,31);
+}
 function baseGunCount(u){return Array.isArray(u.turretHealth)?u.turretHealth.filter(h=>h>0).length:baseGunCapacity(u);}
 function upgradeBaseFlak(u){syncBaseDefenceHealth(u);const missing=u.turretHealth.findIndex(h=>h<=0);if(missing>=0){u.turretHealth[missing]=turretMaxHealth(u);syncBaseDefenceHealth(u);return true;}const level=baseGunCapacity(u);if(level>=50)return false;// DW5 upgrade behaviour: move the currently damaged turret's remaining VF
  // to the newly built slot, restoring that original slot to full health.
@@ -157,14 +174,14 @@ function baseTurretFacingFrame(base,index,now,worldX,worldY){
  state.facing=(state.facing+Math.sign(delta)*Math.min(Math.abs(delta),elapsed*(active?0.055:0.025))+72)%72;
  return state.facing;
 }
-function drawStarterDefences(u,air){ctx.save();const orientation=air?3:1,ax=air?510:450,ay=air?150:130,maxed=true;const gun=dwArt['flak.png'];const health=u.turretHealth??[];if(gun.complete&&gun.naturalWidth){for(let j=health.length-1;j>=0;j--){if(!(health[j]>0))continue;const x=ax+DW5_DEFENCE.x[orientation][j],y=ay+DW5_DEFENCE.y[orientation][j]/3;const frame=baseTurretFacingFrame(u,j,last,x+u.x,y+u.y);drawSmoothTurret(gun,frame,x,y)}}const front=dwArt[maxed?'mauer2b.png':'mauer1a.png'],side=dwArt[maxed?'mauer2d.png':'mauer1d.png'];if(true){if(front.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+(maxed?10:20));if(side.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-(maxed?180:170))}ctx.restore()}
+function drawStarterDefences(u,air){ctx.save();const {orientation,ax,ay}=baseDefenceLayout(u),maxed=true;const gun=dwArt['flak.png'];const health=u.turretHealth??[];if(gun.complete&&gun.naturalWidth){for(let j=health.length-1;j>=0;j--){if(!(health[j]>0))continue;const x=ax+DW5_DEFENCE.x[orientation][j],y=ay+DW5_DEFENCE.y[orientation][j]/3;const frame=baseTurretFacingFrame(u,j,last,x+u.x,y+u.y);drawSmoothTurret(gun,frame,x,y)}}if(u.type==='helibase'){const left=dwArt['mauer2a.png'],right=dwArt['mauer2b.png'];if(left?.complete&&left.naturalWidth)ctx.drawImage(left,ax-525,ay);if(right?.complete&&right.naturalWidth)ctx.drawImage(right,ax+50,ay);}else{const front=dwArt[maxed?'mauer2b.png':'mauer1a.png'],side=dwArt[maxed?'mauer2d.png':'mauer1d.png'];if(front.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+(maxed?10:20));if(side.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-(maxed?180:170));}ctx.restore()}
 // Native factory stages 0..9 use one sprite; stages 10..19 add a second
 // sprite at the offsets used by DW5's base renderer.
 const FACTORY_TYPES={concrete:{name:'Concrete factory',resource:'Concrete',sprite:'g0.png',index:1},steel:{name:'Steel mill',resource:'Steel',sprite:'g1.png',index:2},carbon:{name:'Carbon factory',resource:'Carbon',sprite:'g2.png',index:3},fuel:{name:'Oil refinery',resource:'Fuel',sprite:'g3.png',index:4}};
 function getFactoryLevel(u,key){return u.maxUpgraded?20:Math.max(1,Math.min(20,u.factoryLevels?.[key]??u.factoryLevel??1));}
 function factoryStage(u,key){return getFactoryLevel(u,key)-1;}
 function upgradeFactory(u,key){const level=getFactoryLevel(u,key);if(level>=20)return false;u.factoryLevels??={};u.factoryLevels[key]=level+1;return true;}
-function factoryPoint(u,key){const air=u.type==='airbase',points=air?{concrete:[-60,23],steel:[75,-15],carbon:[490,-255],fuel:[390,-135]}:{concrete:[148,-4],steel:[-22,-84],carbon:[198,-84],fuel:[-162,26]};const[x,y]=points[key];return{x:u.x+x,y:u.y+y};}
+function factoryPoint(u,key){const air=u.type==='airbase',points=u.type==='helibase'?helibaseFactoryOffsets():air?{concrete:[-60,23],steel:[75,-15],carbon:[490,-255],fuel:[390,-135]}:{concrete:[148,-4],steel:[-22,-84],carbon:[198,-84],fuel:[-162,26]};const[x,y]=points[key];return{x:u.x+x,y:u.y+y};}
 function factoryProductionRemaining(u,now=Date.now()){return u.production?.endsAt?Math.max(0,Math.ceil((u.production.endsAt-now)/1000)):0;}
 function startFactoryProduction(u,key,hours,now=Date.now()){if(u.production&&(!u.production.endsAt||factoryProductionRemaining(u,now)>0))return false;const duration=hours*3600;u.production={resource:key,label:FACTORY_TYPES[key].resource,startedAt:now,endsAt:now+duration*1000,duration,titaniumCost:FACTORY_TYPES[key].index*(hours===15?15:1)};return true;}
 function factoryUpgradeQuote(u,key){const n=getFactoryLevel(u,key)-1;return{seconds:Math.round(10*2**n)+5,concrete:key==='concrete'?200*Math.round(3**n)+1800:key==='steel'?2000*Math.round(2.5**n):key==='carbon'?10000*Math.round(2.25**n):50000*Math.round(2**n)};}
@@ -179,6 +196,7 @@ if(enabled('jammer'))picture('jammerturm.png',ex+(air?95:90),ey+(air?-60:-20));
 if(enabled('detector')){picture('detec1.png',ex+30,ey-45);}
 }
 function paintBase(u){ctx.save();const air=u.type==='airbase',w=1500,h=500;const terrain=dwArt[air?'berg4.jpg':u.type==='helibase'?'berg3.jpg':'berg2.jpg'];if((terrain.complete&&terrain.naturalWidth)||terrain instanceof HTMLCanvasElement)ctx.drawImage(terrain,-w/2,-h/2,w,h);
+if(u.type==='helibase'){drawHelibase(u);ctx.restore();return;}
 const level=u.maxUpgraded?19:Math.max(0,Math.min(19,(u.factoryLevel??1)-1));if(u.maxUpgraded){if(air){nativeBuilding('g4.png',4,5,-160,-174);nativeBuilding('g5.png',4,5,-330,-145);nativeBuilding('g6.png',5,6,240,-50);nativeBuilding('g7.png',4,5,-400,-100);nativeBuilding('g9.png',2,3,240,-10)}else{nativeBuilding('g4.png',4,5,350,-30);nativeBuilding('g5.png',4,5,-220,-80);nativeBuilding('g6.png',5,6,70,100);nativeBuilding('g7.png',4,5,-150,-63);nativeBuilding('g9.png',2,3,70,140)}}
 if(air){const hangar=dwArt['airbase2.png'];if(hangar.complete&&hangar.naturalWidth)ctx.drawImage(hangar,6.5,-366,417,240);
 // Positions follow the runway: command buildings behind, factories along the front edge.
@@ -202,12 +220,11 @@ function drawFactoryActivity(u){
  ctx.restore();
 }
 function formatFactoryCountdown(seconds){const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),sec=Math.floor(seconds%60);return(h?h+':':'')+(h?String(m).padStart(2,'0'):m)+':'+String(sec).padStart(2,'0');}
-function drawRotatingHeads(u){const up=u.specialUpgrades??{},air=u.type==='airbase',ex=air?422:348,ey=air?99:76;ctx.save();ctx.translate(u.x,u.y);if(u.maxUpgraded||up.radar){const im=dwArt['radarturm2.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/50)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex-75-fw/2,ey-75-im.naturalHeight/2,fw,im.naturalHeight)}}if(u.maxUpgraded||up.detector){const im=dwArt['detec2.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/50)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex+40-fw/2,ey-90-im.naturalHeight/2,fw,im.naturalHeight)}}if(u.maxUpgraded||up.range){const im=dwArt['rakerw.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/100)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex+8-fw/2,ey-18-im.naturalHeight/2,fw,im.naturalHeight)}}ctx.restore()}
+function drawRotatingHeads(u){const up=u.specialUpgrades??{},air=u.type==='airbase',ex=u.type==='helibase'?4:air?422:348,ey=air?99:76;ctx.save();ctx.translate(u.x,u.y);if(u.maxUpgraded||up.radar){const im=dwArt['radarturm2.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/50)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex-75-fw/2,ey-75-im.naturalHeight/2,fw,im.naturalHeight)}}if(u.maxUpgraded||up.detector){const im=dwArt['detec2.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/50)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex+40-fw/2,ey-90-im.naturalHeight/2,fw,im.naturalHeight)}}if(u.maxUpgraded||up.range){const im=dwArt['rakerw.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/100)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex+8-fw/2,ey-18-im.naturalHeight/2,fw,im.naturalHeight)}}ctx.restore()}
 // Draw a separate VF health bar over the turret currently taking damage.
 // DW5 measurement: 62 screen pixels, 3px black stroke, 2px health stroke.
 function drawTurretHealthBars(u){
- const health=u.turretHealth??[],orientation=u.type==='airbase'?3:1;
- const ax=u.type==='airbase'?510:450,ay=u.type==='airbase'?150:130;
+ const health=u.turretHealth??[],{orientation,ax,ay}=baseDefenceLayout(u);
  const pixel=1/Math.max(.01,zoom),width=62*pixel;
  for(let j=0;j<health.length;j++){
   const hp=health[j];if(!(hp>0&&hp<TURRET_HP))continue;
@@ -537,7 +554,7 @@ function recoverTrappedGroundTroops(dt){
   }else u.trappedFor=.9;
  }
 }
-function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=!!nativeTroops[type]?.air;const x=base.x+(base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced&&!produced.joinOrder){const offset=formationOffset(type,produced.groupSlot),exit=air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}updateDivisionMovement(dt);for(const u of units){const t=TYPES[u.type];if(u.formationOrder&&u.target){const error=Math.hypot(u.target.x-u.x,3*(u.target.y-u.y));const boost=1+Math.min(.55,Math.max(0,(error-troopSpacing(u.type)*.5)/Math.max(1,troopSpacing(u.type)*5)));moveTroopWithDrift(u,{...t,speed:t.speed*boost},dt);}else moveTroopWithDrift(u,t,dt);}recoverTrappedGroundTroops(dt);updateDivisionCombat(dt);updatePendingGroupJoins();}
+function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=!!nativeTroops[type]?.air;const x=base.x+(base.type==='helibase'?4:base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='helibase'?92:base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced&&!produced.joinOrder){const offset=formationOffset(type,produced.groupSlot),exit=base.type==='helibase'?{x:produced.rallyX+offset.x,y:produced.rallyY+120+offset.y}:air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}updateDivisionMovement(dt);for(const u of units){const t=TYPES[u.type];if(u.formationOrder&&u.target){const error=Math.hypot(u.target.x-u.x,3*(u.target.y-u.y));const boost=1+Math.min(.55,Math.max(0,(error-troopSpacing(u.type)*.5)/Math.max(1,troopSpacing(u.type)*5)));moveTroopWithDrift(u,{...t,speed:t.speed*boost},dt);}else moveTroopWithDrift(u,t,dt);}recoverTrappedGroundTroops(dt);updateDivisionCombat(dt);updatePendingGroupJoins();}
 // DW5 Xo(): seven position-hashed ground tiles, 850px columns,
 // 280px rows, odd rows offset by -400px; even rows are painted first.
 function groundVariant(x,y){let g=314159265+x*y;for(let i=0;i<2;i++){g^=g<<13;g^=g<<17;g^=g<<5;}return Math.abs(g)%7;}
@@ -712,7 +729,7 @@ function stopBaseUnitAnimations(){for(const im of baseUnitMenu.querySelectorAll(
 function closeBaseUnitMenu(){stopBaseUnitAnimations();baseUnitMenu.hidden=true;baseUnitId=null;baseUnitKind='ground'}
 // For orientation 3 (airbase) and 1 (military), the actual entrance
 // coincides with DW5 FD/KG[orientation][1]. FQbx/FQby are screen offsets.
-function baseEntrancePoint(u){return{x:u.x+(u.type==='airbase'?422:348),y:u.y+(u.type==='airbase'?99:76)};}
+function baseEntrancePoint(u){return{x:u.x+(u.type==='helibase'?4:u.type==='airbase'?422:348),y:u.y+(u.type==='airbase'?99:76)};}
 function placeBaseUnitMenu(u){
  const aircraft=baseUnitKind==='aircraft',point=aircraft?{x:u.x+215,y:u.y-246}:baseEntrancePoint(u),anchor=projectBasePoint(point),offset=aircraft?{x:0,y:0}:u.type==='airbase'?{x:10,y:130}:{x:50,y:140};
  const position=clampMenuOrigin(anchor,baseUnitMenu,$('base-unit-grid'),offset);
@@ -1255,9 +1272,9 @@ function targetedTurretPoint(base){
  let slot=health.length-1;
  while(slot>=0&&!(health[slot]>0))slot--;
  if(slot<0)return{x:base.x,y:base.y};
- const air=base.type==='airbase',orientation=air?3:1;
- return{x:base.x+(air?510:450)+DW5_DEFENCE.x[orientation][slot],
-  y:base.y+(air?150:130)+DW5_DEFENCE.y[orientation][slot]/3};
+ const {orientation,ax,ay}=baseDefenceLayout(base);
+ return{x:base.x+ax+DW5_DEFENCE.x[orientation][slot],
+  y:base.y+ay+DW5_DEFENCE.y[orientation][slot]/3};
 }
 // Visual-only independent defence gun schedules. DW5's firing code uses
 // per-weapon timestamps, cooldowns and a random probability gate; the precise
@@ -1270,7 +1287,7 @@ function animateBaseMissiles(base,victim,dt){
  let timers=baseMissileSchedules.get(base);
  if(!timers){timers=[];baseMissileSchedules.set(base,timers);}
  if(!victim||victim.hp<=0){timers.length=0;return;}
- const air=base.type==='airbase',orientation=air?3:1,ax=air?510:450,ay=air?150:130;
+ const {orientation,ax,ay}=baseDefenceLayout(base);
  for(let j=0;j<(base.turretHealth?.length??0);j++){
   if(!(base.turretHealth[j]>0)){timers[j]=undefined;continue;}
   if(timers[j]===undefined)timers[j]=Math.random()*.75;

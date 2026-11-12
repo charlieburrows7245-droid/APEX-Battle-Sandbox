@@ -1,3 +1,8 @@
+v1.18.1 - Native helicopter base layout
+- Moved hangar, flag and troop-menu anchor to the front centre of berg3 terrain.
+- Matched orientation-2 factory positions, symmetric turret rows and front wall sections.
+- Updated helicopter base troop exits, turret health bars and missile origins to the same layout.
+
 v1.18.0 - Native DW5 battlefield scale
 - Matched DW5 90x30 coordinate projection: 1200x1200 map coordinates render into 108000x36000 world pixels.
 - Default camera zoom is now 100%; native sprites keep their original proportions.
