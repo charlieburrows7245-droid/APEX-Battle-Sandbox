@@ -118,8 +118,11 @@ function drawBasePlayerName(u){
  // in APEX's own artwork (airbase hangar or military garage).
  const label=BASE_PLAYER_NAMES[u.team]??'Player';
  const air=u.type==='airbase';
- const anchor=air?{x:215,y:-380}:{x:348,y:-135};
- const x=u.x+anchor.x,y=u.y+anchor.y;
+ // Reuse the same building reference as the actual troop-production menu.
+ // The airbase troop menu is attached to the hangar; the military menu
+ // attaches to the garage entrance. Offset upwards to clear each roof.
+ const troopAnchor=air?{x:u.x+215,y:u.y-246}:baseEntrancePoint(u);
+ const x=troopAnchor.x,y=troopAnchor.y-(air?134:110);
  ctx.save();
  ctx.font='24px Verdana, sans-serif';
  ctx.textAlign='center';
