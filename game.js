@@ -418,8 +418,9 @@ document.addEventListener('dragstart',e=>{if(e.target.tagName==='IMG')e.preventD
 // than travelling independently to a static end-of-map offset.
 const divisionMotion=new Map();
 function formationSlotAt(type,slot,heading){
- const p=formationOffset(type,slot),c=Math.cos(heading),s=Math.sin(heading);
- return{x:p.x*c-3*p.y*s,y:(p.x*s+3*p.y*c)/3};
+ // Fixed world-space slot layout: turning the hull must never rotate its
+ // destination around the anchor or cause a helicopter orbit feedback loop.
+ return formationOffset(type,slot);
 }
 function updateDivisionMovement(dt){
  const active=new Set();
