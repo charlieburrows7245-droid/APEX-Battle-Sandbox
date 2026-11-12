@@ -502,13 +502,63 @@ function updateDivisionMovement(dt){
  }
  for(const id of divisionMotion.keys())if(!active.has(id))divisionMotion.delete(id);
 }
+// Solid base footprints for ground vehicles. The rendered terrain is wider
+// than the actual structures; use the central compound/wall footprint only.
+function groundBaseObstacles(){return units.filter(b=>b.hp>0&&!TYPES[b.type].speed).map(b=>({x:b.x,y:b.y,rx:b.type==='airbase'?590:570,ry:b.type==='airbase'?205:190}));}
+function segmentHitsBase(a,b,o){
+ const dx=b.x-a.x,dy=b.y-a.y,px=a.x-o.x,py=a.y-o.y;
+ const A=dx*dx/(o.rx*o.rx)+dy*dy/(o.ry*o.ry);
+ if(A<1e-9)return false;
+ const B=2*(px*dx/(o.rx*o.rx)+py*dy/(o.ry*o.ry));
+ const C=px*px/(o.rx*o.rx)+py*py/(o.ry*o.ry)-1;
+ if(C<0)return true;
+ const disc=B*B-4*A*C;if(disc<=0)return false;
+ const root=(-B-Math.sqrt(disc))/(2*A);return root>=0&&root<=1;
+}
+function groundMoveGoal(u,destination,obstacles){
+ // A persistent detour avoids alternating sides on consecutive frames.
+ const previous=u.baseDetour;
+ if(previous&&Math.hypot(previous.destination.x-destination.x,previous.destination.y-destination.y)<2){
+  if(Math.hypot(u.x-previous.waypoint.x,(u.y-previous.waypoint.y)*3)>15)return previous.waypoint;
+  u.baseDetour=null;
+ }
+ for(const b of obstacles){
+  const dx=u.x-b.x,dy=u.y-b.y;
+  // If already within a compound (e.g. old saved scenario), allow moving out.
+  if(dx*dx/(b.rx*b.rx)+dy*dy/(b.ry*b.ry)<1)continue;
+  if(!segmentHitsBase(u,destination,b))continue;
+  const candidates=[
+   {x:b.x-b.rx-32,y:b.y-b.ry-32},{x:b.x+b.rx+32,y:b.y-b.ry-32},
+   {x:b.x-b.rx-32,y:b.y+b.ry+32},{x:b.x+b.rx+32,y:b.y+b.ry+32}
+  ];
+  // Choose the nearest visible corner. Subsequent steps route along the edge.
+  const valid=candidates.filter(p=>!segmentHitsBase(u,p,b));
+  const options=valid.length?valid:candidates;
+  const waypoint=options.reduce((best,p)=>!best||Math.hypot(u.x-p.x,(u.y-p.y)*3)+Math.hypot(p.x-destination.x,(p.y-destination.y)*3)<Math.hypot(u.x-best.x,(u.y-best.y)*3)+Math.hypot(best.x-destination.x,(best.y-destination.y)*3)?p:best,null);
+  u.baseDetour={destination:{...destination},waypoint};return waypoint;
+ }
+ u.baseDetour=null;return destination;
+}
+function keepGroundOutsideBases(u,oldX,oldY,obstacles){
+ for(const b of obstacles){
+  const dx=u.x-b.x,dy=u.y-b.y,n=dx*dx/(b.rx*b.rx)+dy*dy/(b.ry*b.ry);
+  if(n>=1)continue;
+  const oldDx=oldX-b.x,oldDy=oldY-b.y;
+  if(oldDx*oldDx/(b.rx*b.rx)+oldDy*oldDy/(b.ry*b.ry)<1)continue;
+  // Clamp at the wall, preventing high-speed tunnelling through the compound.
+  let lo=0,hi=1;for(let i=0;i<14;i++){const m=(lo+hi)/2,x=oldX+(u.x-oldX)*m-b.x,y=oldY+(u.y-oldY)*m-b.y;if(x*x/(b.rx*b.rx)+y*y/(b.ry*b.ry)>=1)lo=m;else hi=m;}
+  u.x=oldX+(u.x-oldX)*lo;u.y=oldY+(u.y-oldY)*lo;u.moveSpeed=0;
+ }
+}
 function moveTroopWithDrift(u,t,dt){
- if(!u.target||!t.speed){u.moveSpeed=0;return;}
+ if(!u.target||!t.speed){u.moveSpeed=0;u.baseDetour=null;return;}
+ const obstacles=(u.type==='heli'||u.type==='jet'||u.type==='raptor')?[]:groundBaseObstacles();
  // Fixed maximum step keeps steering and braking consistent across frame rates.
  for(let remaining=dt;remaining>0&&u.target;){
   const h=Math.min(remaining,1/120);remaining-=h;
-  const dx=u.target.x-u.x,dy=(u.target.y-u.y)*3,d=Math.hypot(dx,dy);
-  if(d<=.75){u.x=u.target.x;u.y=u.target.y;u.target=null;u.moveSpeed=0;break;}
+  const goalPoint=obstacles.length?groundMoveGoal(u,u.target,obstacles):u.target;
+  const dx=goalPoint.x-u.x,dy=(goalPoint.y-u.y)*3,d=Math.hypot(dx,dy);
+  if(d<=.75){if(goalPoint!==u.target){u.baseDetour=null;continue;}u.x=u.target.x;u.y=u.target.y;u.target=null;u.moveSpeed=0;break;}
   const goal=Math.atan2(dy,dx),acceleration=t.speed*3;
   u.angle=turnToward(u.angle,goal,h*3);
   const error=Math.abs(Math.atan2(Math.sin(goal-u.angle),Math.cos(goal-u.angle)));
@@ -520,7 +570,9 @@ function moveTroopWithDrift(u,t,dt){
   const steering=3.8+12*Math.max(0,1-d/(t.speed*.5));
   u.travelAngle=turnToward(u.travelAngle??u.angle,goal,h*steering);
   const step=Math.min(u.moveSpeed*h,d);
+  const oldX=u.x,oldY=u.y;
   u.x+=Math.cos(u.travelAngle)*step;u.y+=Math.sin(u.travelAngle)*step/3;
+  if(obstacles.length)keepGroundOutsideBases(u,oldX,oldY,obstacles);
  }
 }
 
@@ -589,8 +641,12 @@ function shotDamage(attacker,target){
 // When that troop dies, acquire another eligible troop at random.
 function baseTargetUnit(base,groups){
  const owner=base.members[0],radius=weaponRange(base);
+ const longRange=!!(owner.maxUpgraded||owner.specialUpgrades?.range);
+ // Normal defence guns cover the front (lower/southern side of the base).
+ // Long Range enables full-circle targeting; the 12/24-unit distances stay unchanged.
+ const frontY=owner.y+(owner.type==='airbase'?99:76);
  const candidates=groups.filter(g=>TYPES[g.type].speed&&!friendlyTeams(base.team,g.team))
-  .flatMap(g=>g.members.filter(u=>u.hp>0&&Math.hypot(u.x-base.x,(u.y-base.y)*3)<=radius));
+  .flatMap(g=>g.members.filter(u=>u.hp>0&&(longRange||u.y>=frontY)&&Math.hypot(u.x-base.x,(u.y-base.y)*3)<=radius));
  if(!candidates.length){owner.baseTargetId=null;owner.baseTargetGroupId=null;return null;}
  // Never spread base damage across a division: stick to its current victim.
  let target=candidates.find(u=>u.id===owner.baseTargetId);
