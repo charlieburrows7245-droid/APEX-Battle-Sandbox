@@ -1,8 +1,8 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('path');
 const game=fs.readFileSync(process.env.APEX_RANGE_GAME||path.join(__dirname,'..','game.js'),'utf8');
 function source(name){const start=game.indexOf('function '+name+'(');assert(start>=0,name+' exists');const end=game.indexOf('\n}',start);assert(end>=0,name+' closing brace');return game.slice(start,end+2);}
-const c={Math,Object,TYPES:{base:{speed:0,range:210},airbase:{speed:0,range:210},tank:{speed:150},aa:{speed:75},heli:{speed:112},raptor:{speed:600}},COMBAT_STATS:{tank:{range:8},aa:{range:10},heli:{range:10},raptor:{range:12}},friendlyTeams:(a,b)=>a===b||a===0&&b===2||a===2&&b===0};
-vm.createContext(c);const config=game.match(/const BASE_WEAPON_RANGE_MAP=[^\n]+/);assert(config);vm.runInContext(config[0]+'\n'+source('weaponRange')+'\n'+source('baseTargetUnit'),c);
+const c={Math,Object,TYPES:{base:{speed:0,range:210},airbase:{speed:0,range:210},tank:{speed:150},aa:{speed:75},heli:{speed:112},raptor:{speed:600}},COMBAT_STATS:{tank:{range:8,categories:['ground']},aa:{range:10,categories:['ground']},heli:{range:10,categories:['helicopter','air']},raptor:{range:12,categories:['aircraft','air']}},friendlyTeams:(a,b)=>a===b||a===0&&b===2||a===2&&b===0};
+vm.createContext(c);const config=game.match(/const BASE_WEAPON_RANGE_MAP=[^\n]+/);assert(config);vm.runInContext(config[0]+'\n'+source('unitHasCategory')+'\n'+source('weaponRange')+'\n'+source('baseTargetUnit'),c);
 function base(type='base',up=false){return{type,team:0,x:0,y:76,members:[{type,x:0,y:0,specialUpgrades:{range:up}}]};}
 function troop(x,y,slot=0,team=1){const u={id:10+slot,type:'tank',x,y,hp:160,team,groupSlot:slot,groupId:99};return{type:'tank',team,x,y,members:[u]};}
 for(const type of ['base','airbase']){

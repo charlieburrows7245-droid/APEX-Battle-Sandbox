@@ -22,3 +22,16 @@ Validation: `node tests/combat.test.cjs`.
 Reverted the enlarged release 1.12 range on the owner's request. Military bases and airbases again use **12 range units normally and 20 with Long Range**, as before release 1.12. `BASE_WEAPON_RANGE_MAP` configures both targeting and selected range outlines. Existing projection, front/rear rules, target selection, health, armour and damage are unchanged. These are sandbox range settings, not verified exact DW5 values.
 
 Validation: `node tests/base-range.test.cjs`. The broad combat harness's pre-existing extraction/parse failure remains outside this rollback.
+
+
+## Unit stats and target categories — release 1.15
+
+All 36 currently buildable types now use published normal/special firepower, armour, range, sight and speed from https://help.deltawars.com/?a=units (retrieved 12 November 2026). Three-second production remains an intentional sandbox override. Native client metadata supplies turret height, pivot and horizontal shift, including howitzer (5), Msta (22) and Paladin (31).
+
+Target categories overlap: ground, helicopter, aircraft, air (helicopters + aircraft), weak armour, base attacker, and base defence. Special power replaces normal power only for the declared target class; ground vehicles without an air speciality use the published 20-strength MG against flying targets. Apache's ground bonus excludes bases. Pantsir targets aircraft; TanSAM and Berkut target helicopters; Raptor and MLRS target both flying categories. Base attackers prefer base defence; Leclerc prefers the artillery/Panhard group. Jammer remains unarmed; Detector has its published 20 firepower. Mobile Patriot and mobile Smerch remain unarmed until a separate deployment mechanic is implemented.
+
+The public help page does not enumerate weak-tank membership. The current sandbox interprets weak as ground armour below 150, a provisional cutoff rather than a confirmed server rule. Leclerc's artillery category includes howitzer, Paladin, Panhard and Msta.
+
+Health pools and damage normalization retain the existing sandbox model. The help page publishes armour, not independent maximum HP; this release does not claim exact native health or a verified server damage formula. Existing base range settings and one-casualty-per-attacker limits are retained.
+
+Validation: production.test.cjs, unit-stats.test.cjs and base-range.test.cjs. The older broad combat harness still has its pre-existing extraction failure.

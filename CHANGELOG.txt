@@ -1,3 +1,9 @@
+v1.15
+- Fixed howitzer/Msta/Paladin turret pivots using native DW5 rendering metadata.
+- Published combat stats for all 36 units; specialised target categories, MG fallback and target preferences.
+- Added verified conditional Leclerc, Msta, tank destroyer and Pantsir range rules.
+- Existing health model retained; weak-armour cutoff remains provisional (see docs/combat-rules.md).
+
 v1.14
 - All 36 production catalogue entries are buildable in three seconds using their native sprites.
 - Reinforcements travel as independent groups and merge only at their destination formation slot.

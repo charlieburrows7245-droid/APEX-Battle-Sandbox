@@ -5,8 +5,13 @@ const MAP_LIMIT=1200,MAP_STEP_X=90,MAP_STEP_Y=90,WORLD_WIDTH=MAP_LIMIT*MAP_STEP_
 function mapCoordinates(p){return{x:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.x/MAP_STEP_X))),y:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.y/MAP_STEP_Y)))}}
 const TYPES={tank:{name:'Type 99',icon:'▰',speed:150,dw5Speed:2,range:165,damage:19,hp:160},aa:{name:'TanSAM',icon:'▤',speed:75,dw5Speed:1,range:240,damage:15,hp:110},heli:{name:'Apache',icon:'✣',speed:112,range:180,damage:16,hp:100},jet:{name:'J-10',icon:'✈',speed:170,range:210,damage:22,hp:100},raptor:{name:'F-22C Raptor',icon:'✈',speed:8*75,range:12*90,damage:50,hp:65000},base:{name:'Military base',icon:'▦',speed:0,range:210,damage:12,hp:1000},airbase:{name:'Airbase',icon:'⊞',speed:0,range:210,damage:12,hp:800}};
 
-// All catalogue entries are buildable; new unit combat values use sandbox class defaults.
-for(const entry of DW5_MENU_UNITS){if(!TYPES[entry.type])TYPES[entry.type]={name:entry.name,icon:entry.air?'✈':'▰',speed:entry.air?170:150,range:entry.air?1080:720,damage:/jammer|Detector|AWAC/i.test(entry.name)?0:19,hp:entry.air?100:160};}
+// Published per-unit combat stats; health pools retain the existing sandbox scale.
+for(const entry of DW5_MENU_UNITS){
+ const stat=entry.combat;
+ TYPES[entry.type]??={name:entry.name,icon:entry.air?'✈':'▰',hp:entry.air?100:160};
+ Object.assign(TYPES[entry.type],{speed:stat.speed*75,dw5Speed:stat.speed,range:stat.range*90,damage:stat.firepower});
+}
+
 let units=[],selected=new Set(),team=0,tool='select',paused=false,speed=1,zoom=.65,cam={x:1200,y:800},W=0,H=0,drag=null,mouse={x:0,y:0},shots=[],uid=0,last=0,statsTimer=0;
 const colors=['#65ff38','#ff3535','#00cfff'];
 function notice(t){$('notice').textContent=t}
@@ -18,7 +23,7 @@ const GROUP_SIZE=49,PLAYER_TEAM=0;
 const DW5_FORMATION_X=[0,1,1,-1,-1,0,2,0,-2,2,2,-2,-2,1,1,-1,-1,3,3,-3,-3,0,4,0,-4,-3,3,-3,3,-4,4,-4,4,2,-2,-2,2,5,-5,5,-5,1,-1,-1,1,0,6,0,-6];
 const DW5_FORMATION_Y=[0,-1,1,1,-1,-2,0,2,0,-2,2,2,-2,-3,3,-3,3,-1,1,-1,1,-4,0,4,0,-3,3,3,-3,2,2,-2,-2,4,-4,4,-4,1,1,-1,-1,5,-5,5,-5,6,0,-6,0];
 let nextGroupId=0;
-function troopSpacing(type){return {tank:48,aa:55,heli:60,jet:85,raptor:85}[type]??(TYPES[type]?.icon==='✈'?85:48);}
+function troopSpacing(type){return DW5_MENU_UNITS.find(e=>e.type===type)?.render?.spacing??48;}
 function formationOffset(type,index){return{x:DW5_FORMATION_X[index%49]*troopSpacing(type),y:DW5_FORMATION_Y[index%49]*troopSpacing(type)/3};}
 function friendlyTeams(a,b){return a===b||(a===0&&b===2)||(a===2&&b===0);}
 function troopRelationColor(side){return side===PLAYER_TEAM?'#65ff38':friendlyTeams(side,PLAYER_TEAM)?'#00cfff':'#ff3535';}
@@ -177,8 +182,8 @@ function actualBase(u){syncBaseDefenceHealth(u);
  if(selected.has(u.id)){ctx.save();ctx.translate(u.x,u.y);ctx.strokeStyle='#d8f38e';ctx.lineWidth=2/zoom;ctx.beginPath();ctx.ellipse(0,0,705,225,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#162013';ctx.fillRect(-50,-277,100,4);ctx.fillStyle=colors[u.team];ctx.fillRect(-50,-277,100*u.hp/baseMaxHealth(u),4);ctx.restore();}
 }
 const nativeTroops={tank:{id:27,raise:-9,pivot:2},aa:{id:43,raise:-13,pivot:12},heli:{id:13,air:true},jet:{id:58,air:true},raptor:{id:37,air:true}};
-for(const entry of DW5_MENU_UNITS)nativeTroops[entry.type]??={id:entry.id,air:entry.air,raise:-9,pivot:2};
-const troopArt={};for(const def of Object.values(nativeTroops)){for(const layer of ['a','b']){if(layer==='b'&&[7,16,6,21,18].includes(def.id))continue;const im=new Image();im.src='assets/gi/panzer'+def.id+layer+'.png';troopArt[def.id+layer]=im}}const apacheRotor=new Image();apacheRotor.src='assets/i/rotor4er.png';
+for(const entry of DW5_MENU_UNITS)nativeTroops[entry.type]={id:entry.id,air:entry.air,...entry.render};
+const troopArt={};for(const def of Object.values(nativeTroops)){for(const layer of ['a','b']){if(layer==='b'&&!def.air&&!def.turret)continue;const im=new Image();im.src='assets/gi/panzer'+def.id+layer+'.png';troopArt[def.id+layer]=im}}const apacheRotor=new Image();apacheRotor.src='assets/i/rotor4er.png';
 function spriteFrame(im,frame,x,y,count=72){if(!im?.complete||!im.naturalWidth)return;const fw=im.naturalWidth/count;ctx.drawImage(im,fw*frame,0,fw,im.naturalHeight,x-fw/2,y-im.naturalHeight/2,fw,im.naturalHeight)}
 // Player labels are drawn separately from cached base artwork, so they remain
 // readable at different zoom levels without invalidating factory/base caches.
@@ -313,7 +318,7 @@ if(selected.has(u.id)){if(u.target){ctx.setLineDash([5,7]);ctx.beginPath();ctx.m
 if(def.air){ctx.globalAlpha=.35;drawTroopHeading(troopArt[def.id+'b'],animation.body,14,22);ctx.globalAlpha=1}
 ctx.save();if(u.type==='heli')ctx.translate(0,Math.sin(animation.time*2.6)*1.2);
 drawTroopHeading(troopArt[def.id+'a'],animation.body,0,0);
-if(!def.air)drawTroopHeading(troopArt[def.id+'b'],animation.turret,-Math.cos(animation.body)*def.pivot,def.raise-Math.sin(animation.body)*def.pivot/3);
+if(!def.air&&def.turret)drawTroopHeading(troopArt[def.id+'b'],animation.turret,(def.shiftX??0)-Math.cos(animation.body)*def.pivot,def.raise-Math.sin(animation.body)*def.pivot/3);
 if(u.type==='heli')spriteFrame(apacheRotor,Math.floor(animation.time*1000/35)%18,0,-7,18);
 ctx.restore();
 ctx.restore()}
@@ -456,7 +461,7 @@ function placeBaseUnitMenu(u){
  baseUnitMenu.style.left=position.left+'px';baseUnitMenu.style.top=position.top+'px';
 }
 function describeBaseUnit(entry){
- $('base-unit-title').textContent=entry.name;$('base-unit-description').textContent=entry.description||'';$('base-unit-detail').textContent=entry.detail||'';
+ $('base-unit-title').textContent=entry.name;$('base-unit-description').textContent=entry.description||'';$('base-unit-detail').textContent=entry.combat?entry.combat.categories.map(c=>({ground:'Ground',weak:'Weak armour',baseAttacker:'Base attacker',air:'Flying unit',aircraft:'Aircraft',helicopter:'Helicopter'}[c]??c)).join(' · ')+' | Armour '+entry.combat.armor+' | Firepower '+entry.combat.firepower+(entry.combat.specialAgainst?' / '+entry.combat.special+' vs '+entry.combat.specialAgainst:''):entry.detail||'';
  const seconds=entry.type?3:(entry.seconds||0),minutes=Math.floor(seconds/60),remainder=seconds%60;$('base-unit-time').textContent=seconds?(minutes?minutes+'min'+(remainder?' '+remainder+'sec':''):seconds+'sec'):'';$('base-unit-cost').textContent=entry.steel?'Steel '+entry.steel.toLocaleString('en-US'):'';$('base-unit-carbon').textContent=entry.carbon?'Carbon '+entry.carbon.toLocaleString('en-US'):'';
 }
 function refreshBaseUnitMenu(u){
@@ -702,14 +707,7 @@ function drawBaseFlag(u){const entrance=baseEntrancePoint(u),air=u.type==='airba
 // Server damage is not public: this sandbox resolves firepower/armour as percent
 // health per existing 0.8s volley, preserving health bars and saved scenarios.
 const BASE_WEAPON_RANGE_MAP=Object.freeze({normal:12,longRange:20});
-const COMBAT_STATS={
- tank:{range:8,firepower:1000,armor:107,sound:'cannon'},
- aa:{range:10,firepower:40,armor:75,special:1000,sound:'rak'},
- heli:{range:10,firepower:100,armor:30,special:2500,sound:'rak'},
- jet:{range:12,firepower:1000,armor:3000,sound:'cannon'},
- raptor:{range:12,sight:21,firepower:50,armor:15000,special:1250,sound:'cannon'}
-};
-for(const entry of DW5_MENU_UNITS)COMBAT_STATS[entry.type]??={range:entry.air?12:8,firepower:TYPES[entry.type].damage?1000:0,armor:entry.air?3000:107,sound:/missile|Patriot|Pantsir|MLRS|Smerch/i.test(entry.name)?'rak':'cannon'};
+const COMBAT_STATS=Object.fromEntries(DW5_MENU_UNITS.map(entry=>[entry.type,entry.combat]));
 let showWeaponRanges=true,combatClock=0;
 const combatCooldowns=new Map(),combatFiredAt=new WeakMap();
 // Track casualty limits by attacking division and defending division, not globally.
@@ -725,36 +723,42 @@ function combatGroups(){
  for(const u of units)if(u.hp>0&&!TYPES[u.type].speed){const p=baseEntrancePoint(u);out.push({key:'b'+u.id,members:[u],type:u.type,team:u.team,x:p.x,y:p.y});}
  return out;
 }
+function unitHasCategory(type,category){
+ if(!TYPES[type])return false;
+ if(category==='base')return !TYPES[type]?.speed;
+ return COMBAT_STATS[type]?.categories.includes(category)??false;
+}
+function effectiveFirepower(attackerType,targetType){
+ const stat=COMBAT_STATS[attackerType];if(!stat)return TYPES[attackerType]?.damage??0;
+ if(stat.specialAgainst&&unitHasCategory(targetType,stat.specialAgainst))return stat.special??stat.firepower;
+ // Published rule: ground vehicles without an anti-air speciality use MG 20.
+ if(stat.domain==='ground'&&unitHasCategory(targetType,'air')&&!['air','aircraft','helicopter'].includes(stat.specialAgainst))return stat.firepower>0?20:0;
+ return stat.firepower;
+}
+function targetPriority(attackerType,targetType){
+ const stat=COMBAT_STATS[attackerType];
+ return stat?.specialAgainst&&unitHasCategory(targetType,stat.specialAgainst)?1:0;
+}
 function weaponRange(group,target=null){
  const stat=COMBAT_STATS[group.type],first=group.members[0];
- let radius=stat?stat.range*90:TYPES[group.type].range;
- // Provisional gameplay distances approved by the owner; not exact DW5 measurements.
  if(!stat)return 90*BASE_WEAPON_RANGE_MAP[(first.maxUpgraded||first.specialUpgrades?.range)?'longRange':'normal'];
  let multiplier=1;
- if(group.type==='aa'&&target?.type==='heli')multiplier=3;
- const firing=target?.firing;
- if(firing&&['tank','aa','heli'].includes(group.type))multiplier=Math.max(multiplier,2);
- if(firing&&['jet','raptor'].includes(group.type)&&['heli','jet','raptor'].includes(target?.type))multiplier=3;
- return radius*multiplier;
+ if(group.type==='aa'&&unitHasCategory(target?.type,'helicopter'))multiplier=3;
+ if(group.type==='unit38'&&unitHasCategory(target?.type,'aircraft'))multiplier=3;
+ if(group.type==='unit32'&&unitHasCategory(target?.type,'baseAttacker'))multiplier=2;
+ if(group.type==='unit6'&&unitHasCategory(target?.type,'ground')&&(target?.firing||target?.moving))multiplier=2;
+ if(group.type==='unit22'&&unitHasCategory(target?.type,'base')&&target?.firing)multiplier=3;
+ // Retain the existing calibrated Type 99/TanSAM/Apache firing-target rule.
+ if(target?.firing&&['tank','aa','heli'].includes(group.type))multiplier=Math.max(multiplier,2);
+ if(group.type==='jet'&&unitHasCategory(target?.type,'air')&&target?.firing)multiplier=3;
+ return stat.range*90*multiplier;
 }
 function shotDamage(attacker,target){
- const stat=COMBAT_STATS[attacker.type];if(!stat){
-  if(!TYPES[attacker.type].speed&&COMBAT_STATS[target.type])return 75000/COMBAT_STATS[target.type].armor;
-  return TYPES[attacker.type].damage;
- }
- let firepower=stat.firepower;
- if(attacker.type==='aa'&&target.type==='heli')firepower=stat.special;
- if(attacker.type==='heli'&&!['heli','jet','raptor'].includes(target.type))firepower=stat.special;
- if(attacker.type==='raptor'&&['heli','jet','raptor'].includes(target.type))firepower=stat.special;
- // Troop armour uses DW5 stats; base damage normalization remains a sandbox rule.
- if(!TYPES[target.type].speed){
-  // DW5 Wall test: 47 MRHs produced 353 VF/tick, 49 more produced 367.
-  // 1500 MRH firepower / (20 * 10 wall armour) = 7.5 VF per MRH.
-  // Other unit-vs-base modifiers remain provisional until measured.
-  return firepower/(20*BASE_WALL_ARMOR);
- }
- const armour=COMBAT_STATS[target.type]?.armor??100;
- return firepower/armour*TYPES[target.type].hp/100;
+ const stat=COMBAT_STATS[attacker.type];
+ if(!stat){if(!TYPES[attacker.type].speed&&COMBAT_STATS[target.type])return 75000/COMBAT_STATS[target.type].armor;return TYPES[attacker.type].damage;}
+ const firepower=effectiveFirepower(attacker.type,target.type);
+ if(!TYPES[target.type].speed)return firepower/(20*BASE_WALL_ARMOR);
+ return firepower/(COMBAT_STATS[target.type]?.armor??100)*TYPES[target.type].hp/100;
 }
 // A base locks onto the first individual troop entering its firing radius.
 // When that troop dies, acquire another eligible troop at random.
@@ -836,7 +840,7 @@ function animateTroopMissiles(group,victim,dt){
 function updateDivisionCombat(dt){
  combatClock+=dt;for(const e of deathEffects)e.age+=dt;for(let i=deathEffects.length-1;i>=0;i--)if(deathEffects[i].age>=deathEffects[i].duration)deathEffects.splice(i,1);for(const u of units)u.casualtyCooldown=Math.max(0,(Number(u.casualtyCooldown)||0)-dt);shots.forEach(s=>s.life-=dt);shots=shots.filter(s=>s.life>0);
  const groups=combatGroups(),damage=[],liveKeys=new Set();
- for(const g of groups){syncGroupHealthCapacity(g);g.firing=g.members.some(u=>combatClock-(combatFiredAt.get(u)??-Infinity)<1);}
+ for(const g of groups){syncGroupHealthCapacity(g);g.firing=g.members.some(u=>combatClock-(combatFiredAt.get(u)??-Infinity)<1);g.moving=g.members.some(u=>!!u.target||(u.moveSpeed??0)>1);}
  for(const g of groups){
   liveKeys.add(g.key);const cooldown=Math.max(0,(combatCooldowns.get(g.key)??0)-dt);combatCooldowns.set(g.key,cooldown);
   if(!(COMBAT_STATS[g.type]?.firepower??TYPES[g.type].damage))continue;
@@ -846,7 +850,7 @@ function updateDivisionCombat(dt){
    if(friendlyTeams(g.team,other.team))continue;
    if(baseVictim)continue; // Keep all base turrets focused on the locked troop.
    const d=combatDistance(g,other);if(d>weaponRange(g,other))continue;
-   const p=g.type==='aa'&&other.type==='heli'?1:0;
+   if(effectiveFirepower(g.type,other.type)<=0)continue;const p=targetPriority(g.type,other.type);
    if(p>priority||(p===priority&&d<best)){target=other;best=d;priority=p;}
   }
   if(!TYPES[g.type].speed)animateBaseMissiles(g.members[0],baseVictim,dt);
