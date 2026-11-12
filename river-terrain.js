@@ -17,7 +17,7 @@
  }
  function seededLayout(seed,width,height){
   let state=Number(seed)>>>0;state=Math.imul(state^(state>>>16),0x7feb352d);state=Math.imul(state^(state>>>15),0x846ca68b);state=(state^(state>>>16))>>>0;const random=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
-  const entryEdge=Math.floor(random()*4),exitEdge=Math.floor(random()*4);
+  const entryEdge=0,exitEdge=Math.floor(random()*4); // Always enter from the top.
   const edgePoint=(edge,fraction)=>edge===0?{x:width*fraction,y:-600}:edge===1?{x:width+600,y:height*fraction}:edge===2?{x:width*fraction,y:height+600}:{x:-600,y:height*fraction};
   const entryFraction=.18+.64*random();let exitFraction=.18+.64*random();
   if(entryEdge===exitEdge&&Math.abs(exitFraction-entryFraction)<.3)exitFraction=entryFraction<.5?.82:.18;
