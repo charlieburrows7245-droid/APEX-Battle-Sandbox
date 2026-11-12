@@ -1,3 +1,7 @@
+v1.18.2 - Helibase menu and flag anchors
+- Upgrade menus use the same helibase building positions as their rendered artwork.
+- Moved the helibase flag and pole clear of the hangar silhouette.
+
 v1.18.1 - Native helicopter base layout
 - Moved hangar, flag and troop-menu anchor to the front centre of berg3 terrain.
 - Matched orientation-2 factory positions, symmetric turret rows and front wall sections.

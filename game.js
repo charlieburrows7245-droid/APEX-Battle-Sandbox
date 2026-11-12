@@ -137,16 +137,17 @@ const DW5_DEFENCE={"x":[[50,-50,90,-64,130,-77,170,-90,210,-102,250,-114,290,-12
 // FD[2][0]=-765, KG[2][0]=-380; terrain centre adds (750,250).
 function baseDefenceLayout(u){return u.type==='helibase'?{orientation:2,ax:15,ay:130}:u.type==='airbase'?{orientation:3,ax:510,ay:150}:{orientation:1,ax:450,ay:130};}
 function helibaseFactoryOffsets(){return{concrete:[210,50],steel:[310,-30],carbon:[-25,-45],fuel:[-285,-20]};}
+function helibaseUpgradeOffsets(){return{command:[-135,15],military:[115,-100],militarySecond:[65,-70],ministry:[-235,70],group:[15,210],office:[-235,110]};}
 function drawHelibase(u){
  const picture=name=>{const im=dwArt[name];if(im?.complete&&im.naturalWidth)ctx.drawImage(im,4-im.naturalWidth/2,76-im.naturalHeight/2);};
  picture('hangar1a.png');
  const points=helibaseFactoryOffsets();for(const [key,name]of Object.entries({concrete:'g0.png',steel:'g1.png',carbon:'g2.png',fuel:'g3.png'})){const [x,y]=points[key];nativeFactory(name,factoryStage(u,key),x,y);}
  picture('hangar1b.png');
- const up=u.specialUpgrades??{},level=(key,max)=>u.maxUpgraded?max:Number(up[key]||0);
+ const up=u.specialUpgrades??{},pointsUp=helibaseUpgradeOffsets(),level=(key,max)=>u.maxUpgraded?max:Number(up[key]||0);
  const building=(name,n,frames,x,y)=>{if(n>0)nativeBuilding(name,Math.min(frames-1,n-1),frames,x,y);};
- building('g4.png',level('command',5),5,-135,15);
- const central=u.maxUpgraded?10:Number(u.militaryCentralLevel||0);building('g5.png',central,5,115,-100);building('g7.png',central-5,5,65,-70);
- building('g6.png',level('ministry',6),6,-235,70);building('g8.png',level('group',3),3,15,210);building('g9.png',level('office',3),3,-235,110);
+ building('g4.png',level('command',5),5,...pointsUp.command);
+ const central=u.maxUpgraded?10:Number(u.militaryCentralLevel||0);building('g5.png',central,5,...pointsUp.military);building('g7.png',central-5,5,...pointsUp.militarySecond);
+ building('g6.png',level('ministry',6),6,...pointsUp.ministry);building('g8.png',level('group',3),3,...pointsUp.group);building('g9.png',level('office',3),3,...pointsUp.office);
  const fixed=(key,name,x,y)=>{if(u.maxUpgraded||up[key]){const im=dwArt[name];if(im?.complete&&im.naturalWidth)ctx.drawImage(im,x-im.naturalWidth/2,y-im.naturalHeight/2);}};
  fixed('radar','radarturm1.png',-86,56);fixed('jammer','jammerturm.png',94,56);fixed('detector','detec1.png',34,31);
 }
@@ -702,7 +703,7 @@ const baseHoverMenu=$('base-hover-menu');
 function upgradeLevel(u,key){if(u.maxUpgraded)return BASE_UPGRADES[key].max||0;return key==='military'?(u.militaryCentralLevel??0):Number(u.specialUpgrades?.[key]||0)}
 function upgradeLock(u,key){return BASE_UPGRADES[key].requiresCentral&&upgradeLevel(u,'military')<10}
 function refreshBaseHover(){const u=units.find(u=>u.id===hoveredBaseId);if(!u){baseHoverMenu.hidden=true;return}const info=BASE_UPGRADES[hoveredUpgrade],level=info.action?0:upgradeLevel(u,hoveredUpgrade),locked=upgradeLock(u,hoveredUpgrade);$('base-hover-title').textContent=info.title;$('base-hover-detail').textContent=locked?'Requires maximum military centrals.':!info.action&&level>=info.max?'Maximum level reached':info.detail;$('base-hover-state').textContent=info.action?(hoveredUpgrade==='startProduction'?'Click to open': 'Planned feature'):locked?'Locked · Military 10 required':'Level '+level+' / '+info.max+(level<info.max?' · Click to upgrade (free)':'');for(const b of baseHoverMenu.querySelectorAll('[data-base-upgrade]')){const k=b.dataset.baseUpgrade,entry=BASE_UPGRADES[k],maxed=!entry.action&&upgradeLevel(u,k)>=entry.max;b.hidden=!HOVER_SECTIONS[hoveredSection].includes(k);b.classList.toggle('maxed',maxed);if(k==='command'){const img=b.querySelector('img');if(img){const n=Math.max(1,Math.min(5,upgradeLevel(u,'command')));const path='assets/menu/command-level-'+n+'.png';if(img.getAttribute('src')!==path)img.src=path}}b.setAttribute('aria-disabled',String(maxed||upgradeLock(u,k)))}}
-function baseSectionPoint(u,section){return section==='military'?{x:u.x+(u.type==='airbase'?-330:-220),y:u.y+(u.type==='airbase'?-145:-80)}:section==='command'?{x:u.x+(u.type==='airbase'?-160:350),y:u.y+(u.type==='airbase'?-174:-30)}:{x:u.x+(u.type==='airbase'?240:70),y:u.y+(u.type==='airbase'?-50:100)}}
+function baseSectionPoint(u,section){if(u.type==='helibase'){const [x,y]=helibaseUpgradeOffsets()[section]??helibaseUpgradeOffsets().ministry;return{x:u.x+x,y:u.y+y};}return section==='military'?{x:u.x+(u.type==='airbase'?-330:-220),y:u.y+(u.type==='airbase'?-145:-80)}:section==='command'?{x:u.x+(u.type==='airbase'?-160:350),y:u.y+(u.type==='airbase'?-174:-30)}:{x:u.x+(u.type==='airbase'?240:70),y:u.y+(u.type==='airbase'?-50:100)}}
 // Native menu origin: projected building hotspot - half actual menu width;
 // the title block is above a grid centred on the hotspot (DW5 LP/yyspace).
 function clampMenuOrigin(anchor,menu,grid,offset={x:0,y:0}){
@@ -1194,7 +1195,9 @@ function moveTroopWithDrift(u,t,dt){
 
 
 function baseFlagAsset(u){return u.team===PLAYER_TEAM?'flaggeg.png':(u.team===3||friendlyTeams(u.team,PLAYER_TEAM))?'flaggeb.png':'flagger.png';}
-function drawBaseFlag(u){const entrance=baseEntrancePoint(u),air=u.type==='airbase',x=entrance.x+(air?6:20),y=entrance.y+(air?7:10),frame=Math.floor(last/100)%34,pole=dwArt['flagget.png'];if(pole?.complete&&pole.naturalWidth)ctx.drawImage(pole,x-15,y-15);spriteFrame(dwArt['flagges.png'],frame,x-20,y+60,34);spriteFrame(dwArt[baseFlagAsset(u)],frame,x,y,34);}
+// Keep the native flag height, but place the pole clear of the hangar silhouette.
+function baseFlagPoint(u){if(u.type==='helibase')return{x:u.x-110,y:u.y+95};const entrance=baseEntrancePoint(u),air=u.type==='airbase';return{x:entrance.x+(air?6:20),y:entrance.y+(air?7:10)};}
+function drawBaseFlag(u){const {x,y}=baseFlagPoint(u),frame=Math.floor(last/100)%34,pole=dwArt['flagget.png'];if(pole?.complete&&pole.naturalWidth)ctx.drawImage(pole,x-15,y-15);spriteFrame(dwArt['flagges.png'],frame,x-20,y+60,34);spriteFrame(dwArt[baseFlagAsset(u)],frame,x,y,34);}
 
 // DW5 help.deltawars.com/?a=units: range, normal/special firepower and armour.
 // Native JZ animates every member of the engaged group; Rx pools weapon sounds.
