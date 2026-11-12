@@ -113,16 +113,13 @@ function spriteFrame(im,frame,x,y,count=72){if(!im?.complete||!im.naturalWidth)r
 // readable at different zoom levels without invalidating factory/base caches.
 const BASE_PLAYER_NAMES=['Player','Opponent'];
 function drawBasePlayerName(u){
- // DW5 draws owner names relative to each base layout, not to a fixed
- // screen position. These anchors follow the troop-menu/command building
- // in APEX's own artwork (airbase hangar or military garage).
+ // Anchor owner labels over the lower defensive entrance, as in the
+ // DW5 airbase reference, rather than over the aircraft hangar.
  const label=BASE_PLAYER_NAMES[u.team]??'Player';
  const air=u.type==='airbase';
- // Reuse the same building reference as the actual troop-production menu.
- // The airbase troop menu is attached to the hangar; the military menu
- // attaches to the garage entrance. Offset upwards to clear each roof.
- const troopAnchor=air?{x:u.x+215,y:u.y-246}:baseEntrancePoint(u);
- const x=troopAnchor.x,y=troopAnchor.y-(air?134:110);
+ const entrance=baseEntrancePoint(u);
+ const x=entrance.x+(air?0:0);
+ const y=entrance.y-(air?105:110);
  ctx.save();
  ctx.font='24px Verdana, sans-serif';
  ctx.textAlign='center';
