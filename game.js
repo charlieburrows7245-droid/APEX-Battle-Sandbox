@@ -56,7 +56,20 @@ $('load').onclick=()=>{try{let s=JSON.parse(localStorage.getItem('apex-sandbox-v
 $('home').onclick=()=>{cam={x:WORLD_WIDTH/2,y:WORLD_HEIGHT/2};zoom=Math.min((W-80)/WORLD_WIDTH,(H-80)/WORLD_HEIGHT)};$('zin').onclick=()=>zoom=Math.min(2,zoom*1.2);$('zout').onclick=()=>zoom=Math.max(.005,zoom/1.2);
 function resize(){W=canvas.clientWidth;H=canvas.clientHeight;canvas.width=W*devicePixelRatio;canvas.height=H*devicePixelRatio}new ResizeObserver(resize).observe(canvas);
 function world(p){return{x:(p.x-W/2)/zoom+cam.x,y:(p.y-H/2)/zoom+cam.y}}function pos(e){let r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
-function issueMove(w){expandGroupSelection();const groups=troopGroups(units.filter(u=>selected.has(u.id)));const cols=Math.ceil(Math.sqrt(groups.length));groups.forEach((group,gi)=>{const gap=troopSpacing(group[0].type)*14,cx=w.x+(gi%cols-(cols-1)/2)*gap,cy=w.y+(Math.floor(gi/cols)-(Math.ceil(groups.length/cols)-1)/2)*gap/3;group.forEach(u=>{delete u.joinOrder;u.formationOrder={x:Math.max(0,Math.min(WORLD_WIDTH,cx)),y:Math.max(0,Math.min(WORLD_HEIGHT,cy))};});});const n=groups.reduce((sum,g)=>sum+g.length,0);if(n){notice('Movement order: '+groups.length+' groups · '+n+' troops');addOrderMarker(w.x,w.y,'move');}return n;}
+function issueMove(w){
+ expandGroupSelection();
+ const groups=troopGroups(units.filter(u=>selected.has(u.id)));
+ // A multi-selection is one destination command, not a new grid formation.
+ // Collision avoidance still keeps distinct ground divisions from overlapping.
+ const x=Math.max(0,Math.min(WORLD_WIDTH,w.x)),y=Math.max(0,Math.min(WORLD_HEIGHT,w.y));
+ for(const group of groups)for(const u of group){
+  delete u.joinOrder;
+  u.formationOrder={x,y};
+ }
+ const n=groups.reduce((sum,g)=>sum+g.length,0);
+ if(n){notice('Movement order: '+groups.length+' groups · '+n+' troops');addOrderMarker(w.x,w.y,'move');}
+ return n;
+}
 canvas.oncontextmenu=e=>e.preventDefault();canvas.onpointerdown=e=>{e.preventDefault();canvas.setPointerCapture(e.pointerId);let p=pos(e),w=world(p);if(e.button===2||e.button===1){drag={kind:'pan',button:e.button,start:p,cam:{...cam}};canvas.style.cursor='grabbing';return}if(e.button!==0)return;if(tool!=='select'){if(w.x<0||w.x>WORLD_WIDTH||w.y<0||w.y>WORLD_HEIGHT)return;spawn(tool,w.x,w.y,team,TYPES[tool].speed?+$('quantity').value:1);notice(TYPES[tool].name+' deployed for '+(['Your','Enemy','Ally'][team])+' force.');return}drag={kind:'select',start:p,end:p,shift:e.shiftKey}};
 canvas.onpointermove=e=>{mouse=pos(e);if(!drag)return;if(drag.kind==='pan'){cam.x=Math.max(0,Math.min(WORLD_WIDTH,drag.cam.x-(mouse.x-drag.start.x)/zoom));cam.y=Math.max(0,Math.min(WORLD_HEIGHT,drag.cam.y-(mouse.y-drag.start.y)/zoom))}else drag.end=mouse};
 canvas.onpointerup=e=>{if(drag?.kind==='pan'&&drag.button===2&&Math.hypot(drag.start.x-pos(e).x,drag.start.y-pos(e).y)<5)transferTroopToClickedGroup(world(pos(e)));if(drag?.kind==='select'){const a=world(drag.start),b=world(pos(e));if(Math.hypot(drag.start.x-pos(e).x,drag.start.y-pos(e).y)<5){const troop=units.slice().reverse().find(u=>TYPES[u.type].speed&&Math.hypot(u.x-b.x,u.y-b.y)<28);if(troop){if(!drag.shift)selected.clear();selected.add(troop.id);notice(TYPES[troop.type].name+' selected. Left-click ground to move.')}else if(!drag.shift&&issueMove(b)){/* Keep the formation selected after a movement order. */}else{if(!drag.shift)selected.clear();const base=units.find(u=>!TYPES[u.type].speed&&Math.abs(u.x-b.x)<750&&Math.abs(u.y-b.y)<250);if(base)selected.add(base.id)}}else{if(!drag.shift)selected.clear();units.filter(u=>TYPES[u.type].speed&&u.x>=Math.min(a.x,b.x)&&u.x<=Math.max(a.x,b.x)&&u.y>=Math.min(a.y,b.y)&&u.y<=Math.max(a.y,b.y)).forEach(u=>selected.add(u.id))}}expandGroupSelection();drag=null;canvas.style.cursor=tool==='select'?'default':'crosshair'};canvas.onpointercancel=()=>{drag=null;canvas.style.cursor=tool==='select'?'default':'crosshair'};
@@ -410,7 +423,7 @@ function troopPathGoal(u,goal){
 function preventTroopPenetration(u,oldX,oldY){
  const air=!!nativeTroops[u.type]?.air;
  for(const v of units){
-  if(v===u||v.hp<=0||!TYPES[v.type]?.speed||v.groupId===u.groupId||!!nativeTroops[v.type]?.air!==air)continue;
+  if(air||v===u||v.hp<=0||!TYPES[v.type]?.speed||nativeTroops[v.type]?.air||v.groupId===u.groupId)continue;
   const min=Math.min(38,Math.max(18,troopSpacing(u.type)*.35))+Math.min(38,Math.max(18,troopSpacing(v.type)*.35));
   const dx=u.x-v.x,dy=(u.y-v.y)*3;
   if(dx*dx+dy*dy>=min*min)continue;
@@ -456,7 +469,12 @@ function drawTerrainView(){
  ctx.restore();
 }
 let fpsFrames=0,fpsWindow=0,lastMini=0,groundPattern=null;
-function frame(now){fpsFrames++;if(now-fpsWindow>=500){$('fps').textContent='FPS '+Math.round(fpsFrames*1000/(now-fpsWindow));fpsFrames=0;fpsWindow=now;}let dt=Math.min(.05,(now-last)/1000||0);last=now;if(!paused)update(dt*speed);ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.fillStyle='#253021';ctx.fillRect(0,0,W,H);drawTerrainView();ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);ctx.strokeStyle='#dce4b609';ctx.lineWidth=1;for(let x=Math.max(0,Math.floor((cam.x-W/(2*zoom))/900)*900);x<=Math.min(WORLD_WIDTH,cam.x+W/(2*zoom));x+=900){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,WORLD_HEIGHT);ctx.stroke()}for(let y=Math.max(0,Math.floor((cam.y-H/(2*zoom))/900)*900);y<=Math.min(WORLD_HEIGHT,cam.y+H/(2*zoom));y+=900){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(WORLD_WIDTH,y);ctx.stroke()}const visible=u=>Math.abs(u.x-cam.x)<W/(2*zoom)+(TYPES[u.type].speed?80:900)&&Math.abs(u.y-cam.y)<H/(2*zoom)+(TYPES[u.type].speed?80:500);for(const u of units)if(!TYPES[u.type].speed&&visible(u))drawUnit(u);for(const u of units)if(TYPES[u.type].speed&&visible(u))drawUnit(u);drawDeathEffects();for(const u of units)if(TYPES[u.type].speed&&visible(u))drawTargetUnitHealth(u);drawWeaponRanges();drawTroopGroupLabels(visible);drawOrderMarkers();// Animated projectiles travel along their own paths instead of drawing an entire instantaneous beam.
+function frame(now){fpsFrames++;if(now-fpsWindow>=500){$('fps').textContent='FPS '+Math.round(fpsFrames*1000/(now-fpsWindow));fpsFrames=0;fpsWindow=now;}let dt=Math.min(.05,(now-last)/1000||0);last=now;if(!paused)update(dt*speed);ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.fillStyle='#253021';ctx.fillRect(0,0,W,H);drawTerrainView();ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);ctx.strokeStyle='#dce4b609';ctx.lineWidth=1;for(let x=Math.max(0,Math.floor((cam.x-W/(2*zoom))/900)*900);x<=Math.min(WORLD_WIDTH,cam.x+W/(2*zoom));x+=900){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,WORLD_HEIGHT);ctx.stroke()}for(let y=Math.max(0,Math.floor((cam.y-H/(2*zoom))/900)*900);y<=Math.min(WORLD_HEIGHT,cam.y+H/(2*zoom));y+=900){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(WORLD_WIDTH,y);ctx.stroke()}const visible=u=>Math.abs(u.x-cam.x)<W/(2*zoom)+(TYPES[u.type].speed?80:900)&&Math.abs(u.y-cam.y)<H/(2*zoom)+(TYPES[u.type].speed?80:500);for(const u of units)if(!TYPES[u.type].speed&&visible(u))drawUnit(u);// Paint ground vehicles first, helicopters above them, then fixed-wing
+// aircraft above helicopters. Airborne units do not participate in collision.
+for(const u of units)if(TYPES[u.type].speed&&!nativeTroops[u.type]?.air&&visible(u))drawUnit(u);
+for(const u of units)if(TYPES[u.type].speed&&u.type==='heli'&&visible(u))drawUnit(u);
+for(const u of units)if(TYPES[u.type].speed&&nativeTroops[u.type]?.air&&u.type!=='heli'&&visible(u))drawUnit(u);
+drawDeathEffects();for(const u of units)if(TYPES[u.type].speed&&visible(u))drawTargetUnitHealth(u);drawWeaponRanges();drawTroopGroupLabels(visible);drawOrderMarkers();// Animated projectiles travel along their own paths instead of drawing an entire instantaneous beam.
  for(const s of shots){
   const progress=Math.max(0,Math.min(1,1-s.life/s.total));
   if(s.missile){
@@ -711,7 +729,7 @@ function divisionYieldDecisions(groups){
  const active=groups.filter(g=>g.some(v=>v.formationOrder));
  for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
   const a=active[i],b=active[j];
-  if(!!nativeTroops[a[0].type]?.air!==!!nativeTroops[b[0].type]?.air)continue;
+  if(nativeTroops[a[0].type]?.air||nativeTroops[b[0].type]?.air)continue;
   const am=divisionMotion.get(a[0].groupId),bm=divisionMotion.get(b[0].groupId);
   if(!am||!bm)continue;
   const ab=divisionProjectedBox(a,am),bb=divisionProjectedBox(b,bm);
@@ -721,7 +739,8 @@ function divisionYieldDecisions(groups){
  return yielding;
 }
 function divisionObstacleBoxes(motion,members){
- const air=!!nativeTroops[members[0].type]?.air;
+ if(nativeTroops[members[0].type]?.air)return [];
+ const air=false;
  const offsets=members.map(v=>formationOffset(v.type,v.groupSlot??0));
  const left=Math.min(0,...offsets.map(p=>p.x))-24,right=Math.max(0,...offsets.map(p=>p.x))+24;
  const top=Math.min(0,...offsets.map(p=>p.y*3))-24,bottom=Math.max(0,...offsets.map(p=>p.y*3))+24;
