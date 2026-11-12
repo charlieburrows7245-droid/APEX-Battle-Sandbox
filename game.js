@@ -68,7 +68,7 @@ function shortTroopLabel(type){
  if(distinctive.length)return distinctive.join(' ').slice(0,12);
  return words.map(w=>w[0]?.toUpperCase()||'').join('').slice(0,8);
 }
-function drawTroopGroupLabels(visible){ctx.save();ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.font='bold 12px Tahoma,Arial,sans-serif';for(const group of troopGroups()){if(!group.some(visible))continue;const x=group.reduce((sum,u)=>sum+u.x,0)/group.length,cy=group.reduce((sum,u)=>sum+u.y,0)/group.length,y=Math.min(...group.map(u=>u.y))-45;if(group.some(u=>selected.has(u.id))){const radius=Math.max(...group.map(u=>Math.abs(u.x-x)+3*Math.abs(u.y-cy)))+36;ctx.strokeStyle='#dde89b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-radius,cy);ctx.lineTo(x,cy-radius/3);ctx.lineTo(x+radius,cy);ctx.lineTo(x,cy+radius/3);ctx.closePath();ctx.stroke();}ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.9)';const first=group[0],owner=(first.playerName??BASE_PLAYER_NAMES[first.team]??'Player').toUpperCase(),label=group.length+' '+shortTroopLabel(first.type).toUpperCase();ctx.strokeText(owner,x,y-12);ctx.strokeText(label,x,y);ctx.fillStyle=troopRelationColor(first.team);ctx.fillText(owner,x,y-12);ctx.fillText(label,x,y);}ctx.restore();}
+function drawTroopGroupLabels(visible){ctx.save();ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.font='bold 12px Tahoma,Arial,sans-serif';for(const group of troopGroups()){if(!group.some(visible))continue;const x=group.reduce((sum,u)=>sum+u.x,0)/group.length,cy=group.reduce((sum,u)=>sum+u.y,0)/group.length,y=Math.min(...group.map(u=>u.y))-45;if(group.some(u=>selected.has(u.id))){const radius=Math.max(...group.map(u=>Math.abs(u.x-x)+3*Math.abs(u.y-cy)))+36;ctx.strokeStyle='#dde89b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-radius,cy);ctx.lineTo(x,cy-radius/3);ctx.lineTo(x+radius,cy);ctx.lineTo(x,cy+radius/3);ctx.closePath();ctx.stroke();}ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.9)';const first=group[0],owner=(first.team===PLAYER_TEAM?playerName:first.playerName??BASE_PLAYER_NAMES[first.team]??'Player').toUpperCase(),label=group.length+' '+shortTroopLabel(first.type).toUpperCase();ctx.strokeText(owner,x,y-12);ctx.strokeText(label,x,y);ctx.fillStyle=troopRelationColor(first.team);ctx.fillText(owner,x,y-12);ctx.fillText(label,x,y);}ctx.restore();}
 
 function spawn(type,x,y,side,count,originBase=null){
  if(!TYPES[type].speed){for(let i=0;i<count;i++)add(type,x,y,side);return;}
@@ -256,12 +256,23 @@ const troopArt={};for(const def of Object.values(nativeTroops)){for(const layer 
 function spriteFrame(im,frame,x,y,count=72){if(!im?.complete||!im.naturalWidth)return;const fw=im.naturalWidth/count;ctx.drawImage(im,fw*frame,0,fw,im.naturalHeight,x-fw/2,y-im.naturalHeight/2,fw,im.naturalHeight)}
 // Player labels are drawn separately from cached base artwork, so they remain
 // readable at different zoom levels without invalidating factory/base caches.
+let playerName=(localStorage.getItem('apexPlayerName')||'Player').trim().slice(0,24)||'Player';
 const BASE_PLAYER_NAMES=['Player','Opponent','Ally'];
+function baseOwnerName(u){return u.team===PLAYER_TEAM?playerName:(u.playerName&&u.playerName!=='Player'?u.playerName:BASE_PLAYER_NAMES[u.team]||'Neutral');}
+const nameInput=$('player-name'),nameButton=$('player-name-save');
+if(nameInput){nameInput.value=playerName;nameButton?.addEventListener('click',()=>{
+ const next=nameInput.value.trim().replace(/[<>]/g,'').slice(0,24);
+ if(!next)return notice('Enter a player name first.');
+ playerName=next;localStorage.setItem('apexPlayerName',next);
+ for(const u of units)if(u.team===PLAYER_TEAM)u.playerName=next;
+ notice('Player name updated to '+next);
+});}
+
 function drawBasePlayerName(u){
  // Place the airbase owner above the small main entrance building beside
  // the curved wall, matching the visual anchor in the DW5 reference.
  // APEX's base is assembled differently, so use its entrance anchor.
- const label=(BASE_PLAYER_NAMES[u.team]??'Player').toUpperCase();
+ const label=baseOwnerName(u).toUpperCase();
  const air=u.type==='airbase';
  const entrance=baseEntrancePoint(u);
  const x=air?entrance.x-20:entrance.x;
@@ -1379,7 +1390,23 @@ function updateDivisionCombat(dt){
    const scaled=hit.amount*TYPES[victim.type].hp/TURRET_HP;
    victim.hp=Math.max(0,victim.hp-scaled);
    if(victim.hp===0){attackerCasualtyTimes.set(key,combatClock);queueCombatSound('explo',victim.x,victim.y);}
-  }else applyAttackerVolley(hit.target,hit.amount,hit.attacker);
+  }else{
+   if(!TYPES[hit.target.type].speed){
+    const attackerGroup=groups.find(g=>g.key===hit.attacker);
+    const base=hit.target.members[0];
+    if(attackerGroup&&base)base.lastAttackerTeam=attackerGroup.team;
+   }
+   applyAttackerVolley(hit.target,hit.amount,hit.attacker);
+  }
+ }
+ for(const u of units)if(u.hp<=0&&!TYPES[u.type].speed&&Number.isInteger(u.lastAttackerTeam)&&u.lastAttackerTeam!==u.team){
+  const oldTeam=u.team;
+  u.team=u.lastAttackerTeam;
+  u.playerName=u.team===PLAYER_TEAM?playerName:(BASE_PLAYER_NAMES[u.team]||'Opponent');
+  delete u.lastAttackerTeam;u.baseTargetId=null;u.buildQueue=[];u.buildTimer=0;
+  resetBaseDefenceHealth(u);
+  selected.delete(u.id);
+  notice((u.team===PLAYER_TEAM?'You captured ':'Base captured by '+u.playerName+': ')+(u.mapBaseId?'#'+u.mapBaseId:TYPES[u.type].name));
  }
  for(const u of units)if(u.hp<=0){selected.delete(u.id);registerTroopDeath(u);}
  units=units.filter(u=>u.hp>0);
