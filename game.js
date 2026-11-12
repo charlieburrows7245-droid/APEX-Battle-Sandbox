@@ -122,7 +122,7 @@ function drawBasePlayerName(u){
  const y=air?u.y-110:baseEntrancePoint(u).y-110;
  ctx.save();
  ctx.font='24px Verdana, sans-serif';
- ctx.textAlign='center';
+ ctx.textAlign='start';
  ctx.textBaseline='alphabetic';
  // Match DW5's three-pass offset text shadow.
  ctx.fillStyle='rgba(0,0,0,.9)';
