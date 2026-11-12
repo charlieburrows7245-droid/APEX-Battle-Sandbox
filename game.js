@@ -295,19 +295,24 @@ function frame(now){fpsFrames++;if(now-fpsWindow>=500){$('fps').textContent='FPS
  for(const s of shots){
   const progress=Math.max(0,Math.min(1,1-s.life/s.total));
   if(s.missile){
-   const trail=Math.min(.14,progress),p0=Math.max(0,progress-trail);
-   const x0=s.x+(s.tx-s.x)*p0,y0=s.y+(s.ty-s.y)*p0;
-   const x1=s.x+(s.tx-s.x)*progress,y1=s.y+(s.ty-s.y)*progress;
-   ctx.strokeStyle='#ffb95b';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
-   if(dw5MissileSprite.complete&&dw5MissileSprite.naturalWidth){
-    // Original game uses Kncr3(..., NP[63], frame, 5, ..., angle).
-    const fw=dw5MissileSprite.naturalWidth/5,fh=dw5MissileSprite.naturalHeight;
-    const frame=Math.floor((performance.now()/85)%5);
-    const angle=Math.atan2((s.ty-s.y)*3,s.tx-s.x);
-    const size=Math.max(7,Math.min(22,fw*.45));
-    ctx.save();ctx.translate(x1,y1);ctx.rotate(angle+Math.PI/2);
-    ctx.drawImage(dw5MissileSprite,frame*fw,0,fw,fh,-size/2,-size/2,size,size);ctx.restore();
-   }else{ctx.fillStyle='#fff4b3';ctx.beginPath();ctx.arc(x1,y1,2.4,0,Math.PI*2);ctx.fill();}
+   // Short DW5-style luminous streak with segmented amber/red exhaust and smoke.
+   // Projectile travel is visual only; damage is resolved independently.
+   const p=Math.max(0,Math.min(1,1-s.life/s.total));
+   const x=s.x+(s.tx-s.x)*p,y=s.y+(s.ty-s.y)*p;
+   const angle=Math.atan2(s.ty-s.y,s.tx-s.x),ux=Math.cos(angle),uy=Math.sin(angle);
+   const len=22,tail=31;
+   ctx.save();ctx.lineCap='round';
+   ctx.strokeStyle='rgba(120,110,100,.22)';ctx.lineWidth=7;
+   ctx.beginPath();ctx.moveTo(x-ux*(len+tail),y-uy*(len+tail));ctx.lineTo(x-ux*len,y-uy*len);ctx.stroke();
+   ctx.strokeStyle='rgba(250,138,65,.6)';ctx.lineWidth=4;
+   ctx.beginPath();ctx.moveTo(x-ux*22,y-uy*22);ctx.lineTo(x-ux*10,y-uy*10);ctx.stroke();
+   ctx.strokeStyle='#f7a348';ctx.lineWidth=3;
+   ctx.beginPath();ctx.moveTo(x-ux*11,y-uy*11);ctx.lineTo(x-ux*4,y-uy*4);ctx.stroke();
+   ctx.strokeStyle='#fff6b0';ctx.lineWidth=3.3;
+   ctx.beginPath();ctx.moveTo(x-ux*4,y-uy*4);ctx.lineTo(x+ux*12,y+uy*12);ctx.stroke();
+   ctx.strokeStyle='#fffef2';ctx.lineWidth=1.6;
+   ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+ux*13,y+uy*13);ctx.stroke();
+   ctx.restore();
   }else{ctx.strokeStyle='#ffe9a1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.tx,s.ty);ctx.stroke();}
  }ctx.restore();if(drag?.kind==='select'){ctx.fillStyle='#c7e88722';ctx.strokeStyle='#c7e887';let a=drag.start,b=drag.end;ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y)}if(now-lastMini>=100){lastMini=now;mc.fillStyle='#4a5838';mc.fillRect(0,0,mini.width,mini.height);for(let u of units){mc.fillStyle=colors[u.team];mc.fillRect(u.x/WORLD_WIDTH*mini.width,u.y/WORLD_HEIGHT*mini.height,TYPES[u.type].speed?2:5,TYPES[u.type].speed?2:5)}mc.strokeStyle='#e4efc5';mc.strokeRect((cam.x-W/zoom/2)/WORLD_WIDTH*mini.width,(cam.y-H/zoom/2)/WORLD_HEIGHT*mini.height,W/zoom/WORLD_WIDTH*mini.width,H/zoom/WORLD_HEIGHT*mini.height);}if(now-statsTimer>150){for(const u of units)if(u.production?.endsAt&&u.production.endsAt<=Date.now())delete u.production;const coordinate=mapCoordinates(world(mouse));$('coordinates').textContent=coordinate.x+','+coordinate.y;$('status').textContent=`${paused?'PAUSED':'SIMULATION LIVE'}  ·  YOURS ${units.filter(u=>u.team===0).length} / ALLY ${units.filter(u=>u.team===2).length} / ENEMY ${units.filter(u=>u.team===1).length}  ·  ${Math.round(zoom*100)}%`;$('selection').textContent=selected.size?selected.size+' SELECTED · DELETE TO REMOVE':'NO UNITS SELECTED';statsTimer=now}syncBaseMenuPositions();requestAnimationFrame(frame)}resize();demo();requestAnimationFrame(frame);
 
@@ -757,7 +762,7 @@ function updateDivisionCombat(dt){
    const kind=COMBAT_STATS[u.type]?.sound??'mg';
    // Base turrets contribute to one focused volley, not separate visible
    // shots scattered across the formation.
-   if(TYPES[g.type].speed){const impact=TYPES[victim.type].speed?{x:victim.x,y:victim.y}:targetedTurretPoint(victim);shots.push({x:u.x,y:u.y,tx:impact.x,ty:impact.y,life:.18,total:.18,kind,missile:u.type==='heli'||u.type==='aa'});}
+   if(TYPES[g.type].speed){const impact=TYPES[victim.type].speed?{x:victim.x,y:victim.y}:targetedTurretPoint(victim);shots.push({x:u.x,y:u.y,tx:impact.x,ty:impact.y,life:.18,total:.18,kind,missile:u.type==='heli'||u.type==='aa'||u.type==='raptor'});}
    u.aimAngle=Math.atan2((victim.y-u.y)*3,victim.x-u.x);
   }
   // Base missile visuals are emitted independently above, not per damage volley.
