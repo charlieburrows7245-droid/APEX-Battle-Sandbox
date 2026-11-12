@@ -848,7 +848,7 @@ function moveTroopWithDrift(u,t,dt){
  for(let remaining=dt;remaining>0&&u.target;){
   const h=Math.min(remaining,1/120);remaining-=h;
   const baseGoal=obstacles.length?groundMoveGoal(u,u.target,obstacles):u.target;
-  const goalPoint=u._divisionAnchor?baseGoal:troopPathGoal(u,baseGoal);
+  const goalPoint=(u._divisionAnchor||u.formationOrder)?baseGoal:troopPathGoal(u,baseGoal);
   const dx=goalPoint.x-u.x,dy=(goalPoint.y-u.y)*3,d=Math.hypot(dx,dy);
   if(d<=.75){if(goalPoint!==u.target){u.baseDetour=null;continue;}u.x=u.target.x;u.y=u.target.y;u.target=null;u.moveSpeed=0;break;}
   const goal=Math.atan2(dy,dx),acceleration=t.speed*3;
