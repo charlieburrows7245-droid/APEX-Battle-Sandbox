@@ -146,3 +146,6 @@ header{height:46px;padding:0 12px;background:#161b18eF}.brand{font-size:17px}.br
 .cancel-production-actions button:hover{background:#5752e2}
 
 #factory-hover-icons .factory-hours-label{position:absolute;left:0;right:0;top:7px;color:#fff3b4;font:bold 18px/20px Arial;text-align:center;text-shadow:1px 2px 1px #000,-1px -1px 1px #000;pointer-events:none}#factory-hover-icons .factory-cancel .factory-hours-label{display:none}
+
+/* Native factory cells: full-size artwork and readable duration labels. */
+#factory-hover-menu{transform:none}#factory-hover-icons img{width:60px;height:40px;object-fit:contain}#factory-hover-icons .factory-hours-label{top:8px;font:bold 20px/22px Tahoma,Arial,sans-serif;text-shadow:2px 2px 1px #000,-1px -1px 1px #000}
