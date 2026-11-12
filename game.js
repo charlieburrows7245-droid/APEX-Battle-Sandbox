@@ -492,6 +492,8 @@ const COMBAT_STATS={
 };
 let showWeaponRanges=true,combatClock=0;
 const combatCooldowns=new Map(),combatFiredAt=new WeakMap();
+// Track casualty limits by attacking division and defending division, not globally.
+const attackerCasualtyTimes=new Map();
 function combatDistance(a,b){return Math.hypot(b.x-a.x,(b.y-a.y)*3);}
 function combatGroups(){
  for(const u of units)if(!TYPES[u.type].speed)syncBaseDefenceHealth(u);
@@ -535,7 +537,7 @@ function shotDamage(attacker,target){
 }
 function updateDivisionCombat(dt){
  combatClock+=dt;for(const u of units)u.casualtyCooldown=Math.max(0,(Number(u.casualtyCooldown)||0)-dt);shots.forEach(s=>s.life-=dt);shots=shots.filter(s=>s.life>0);
- const groups=combatGroups(),damage=new Map(),liveKeys=new Set();
+ const groups=combatGroups(),damage=[],liveKeys=new Set();
  for(const g of groups){syncGroupHealthCapacity(g);g.firing=g.members.some(u=>combatClock-(combatFiredAt.get(u)??-Infinity)<1);}
  for(const g of groups){
   liveKeys.add(g.key);const cooldown=Math.max(0,(combatCooldowns.get(g.key)??0)-dt);combatCooldowns.set(g.key,cooldown);
@@ -555,7 +557,7 @@ function updateDivisionCombat(dt){
   const shooters=TYPES[g.type].speed?g.members:Array.from({length:baseGunCount(g.members[0])},()=>g.members[0]);
   for(const u of shooters){
    const amount=shotDamage(u,victim);
-   damage.set(target,(damage.get(target)??0)+amount);combatFiredAt.set(u,combatClock);
+   damage.push({target,attacker:g.key,amount});combatFiredAt.set(u,combatClock);
    const kind=COMBAT_STATS[u.type]?.sound??'mg';
    shots.push({x:TYPES[u.type].speed?u.x:g.x,y:TYPES[u.type].speed?u.y:g.y,tx:TYPES[victim.type].speed?victim.x:target.x,ty:TYPES[victim.type].speed?victim.y:target.y,life:.18,total:.18,kind});
    u.aimAngle=Math.atan2((victim.y-u.y)*3,victim.x-u.x);
@@ -563,10 +565,16 @@ function updateDivisionCombat(dt){
   queueCombatSound(COMBAT_STATS[g.type]?.sound??'mg',g.x,g.y);
  }
  // Resolve together so array order never denies a division its return volley.
- for(const [group,amount]of damage)applyGroupDamage(group,amount);
+ // Each attacking division has its own casualty allowance against a target.
+ // Aggregate its shooters into one volley, then resolve each attacking division
+ // independently. Two lethal divisions can therefore kill two defenders.
+ const volleys=new Map();
+ for(const hit of damage){const key=hit.attacker+'>'+hit.target.key;const prev=volleys.get(key);if(prev)prev.amount+=hit.amount;else volleys.set(key,{...hit});}
+ for(const hit of volleys.values())applyAttackerVolley(hit.target,hit.amount,hit.attacker);
  for(const u of units)if(u.hp<=0){selected.delete(u.id);}
  units=units.filter(u=>u.hp>0);
  for(const key of combatCooldowns.keys())if(!liveKeys.has(key))combatCooldowns.delete(key);
+ for(const key of attackerCasualtyTimes.keys()){const [attacker,defender]=key.split('>');if(!liveKeys.has(attacker)||!liveKeys.has(defender))attackerCasualtyTimes.delete(key);}
  flushCombatSounds();
 }
 function drawWeaponRanges(){
@@ -652,6 +660,21 @@ function applyGroupDamage(group,amount){
  // Discard overkill and all incoming damage during this simulation-time lock.
  // No damage debt is saved up to kill more members after firing has stopped.
  if(died){for(const u of group.members)u.casualtyCooldown=CASUALTY_INTERVAL;queueCombatSound('explo',victim.x,victim.y);}
+}
+function applyAttackerVolley(group,amount,attackerKey){
+ if(!(amount>0))return;
+ if(!TYPES[group.type].speed){applyGroupDamage(group,amount);return;}
+ const key=attackerKey+'>'+group.key;
+ const previous=attackerCasualtyTimes.get(key);
+ // One lethal casualty per attacking division per second; nonlethal damage
+ // still accumulates on the current defender between attacks.
+ const canKill=previous===undefined||combatClock-previous>=CASUALTY_INTERVAL-1e-8;
+ const victim=group.members.filter(u=>u.hp>0).reduce((a,b)=>
+  !a||(b.groupSlot??0)>(a.groupSlot??0)?b:a,null);
+ if(!victim)return;
+ if(!canKill){victim.hp=Math.max(0.000001,victim.hp-amount);return;}
+ victim.hp=Math.max(0,victim.hp-amount);
+ if(victim.hp===0){attackerCasualtyTimes.set(key,combatClock);queueCombatSound('explo',victim.x,victim.y);}
 }
 function drawGroupHealth(members,x,y){
  const h=groupHealthSummary(members);ctx.save();ctx.fillStyle='#152014';ctx.fillRect(x-42,y+6,84,4);ctx.fillStyle=troopRelationColor(members[0].team);ctx.fillRect(x-42,y+6,84*Math.max(0,Math.min(1,h.health/h.maximum)),4);
