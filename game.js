@@ -457,7 +457,7 @@ function recoverTrappedGroundTroops(dt){
   return true;
  };
  for(const u of ground){
-  const goal=u.target;
+  const goal=u.target||u.formationOrder;
   if(!goal){u.trappedFor=0;u.stuckSample=null;continue;}
   const remaining=Math.hypot(goal.x-u.x,(goal.y-u.y)*3);
   if(remaining<radius(u)*.5){u.trappedFor=0;u.stuckSample=null;continue;}
@@ -931,6 +931,9 @@ function updateDivisionMovement(dt){
   motion._priorityPass=!yielding.has(id);
   const boxes=divisionObstacleBoxes(motion,members);
   const oldAnchor={x:motion.x,y:motion.y};
+  // A route can fail entirely if its starting anchor is already inside
+  // another formation's expanded footprint. Track genuine anchor stalls.
+  const oldDistance=Math.hypot(order.x-motion.x,(order.y-motion.y)*3);
   if(yielding.has(id)){
    // Keep the original order and any route. Yield without moving the anchor.
    motion.moveSpeed=0;
@@ -946,6 +949,35 @@ function updateDivisionMovement(dt){
   if(!divisionStepSafe(oldAnchor,motion,boxes)){
    motion.x=oldAnchor.x;motion.y=oldAnchor.y;motion.moveSpeed=0;
    motion.divisionRoute=null;
+  }
+  const progress=Math.hypot(motion.x-oldAnchor.x,(motion.y-oldAnchor.y)*3);
+  if(!yielding.has(id)&&oldDistance>40&&progress<Math.max(.05,TYPES[type].speed*dt*.025))
+   motion.anchorStuck=(motion.anchorStuck||0)+dt;
+  else motion.anchorStuck=0;
+  if(!nativeTroops[type]?.air&&motion.anchorStuck>1.5){
+   // Reposition the virtual formation anchor only to a verified open
+   // location, then let each member catch up normally. No mass teleport.
+   const goalAngle=Math.atan2((order.y-motion.y)*3,order.x-motion.x);
+   let escape=null;
+   for(const dist of [40,80,130,200,300,450,650,900,1250]){
+    for(let i=0;i<32;i++){
+     const angle=goalAngle+i*Math.PI/16;
+     const x=motion.x+Math.cos(angle)*dist,y=motion.y+Math.sin(angle)*dist/3;
+     if(x<0||x>WORLD_WIDTH||y<0||y>WORLD_HEIGHT)continue;
+     if(!divisionSegmentClear({x,y:y*3},{x,y:y*3+.001},boxes))continue;
+     const blocked=groundBaseObstacles().some(b=>{
+      const dx=x-b.x,dy=y-b.y;
+      return dx*dx/(b.rx*b.rx)+dy*dy/(b.ry*b.ry)<1.1;
+     });
+     if(!blocked){escape={x,y};break;}
+    }
+    if(escape)break;
+   }
+   if(escape){
+    motion.x=escape.x;motion.y=escape.y;
+    motion.divisionRoute=null;motion.target=null;motion.moveSpeed=0;
+    motion.anchorStuck=0;
+   }else motion.anchorStuck=.75;
   }
   const heading=motion.angle;
   let settled=!yielding.has(id)&&!!motion.resolvedGoal&&!motion.divisionRoute&&Math.hypot(motion.x-motion.resolvedGoal.x,(motion.y-motion.resolvedGoal.y)*3)<1.5;
