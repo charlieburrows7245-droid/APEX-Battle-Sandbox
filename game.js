@@ -113,21 +113,31 @@ function spriteFrame(im,frame,x,y,count=72){if(!im?.complete||!im.naturalWidth)r
 // readable at different zoom levels without invalidating factory/base caches.
 const BASE_PLAYER_NAMES=['Player','Opponent'];
 function drawBasePlayerName(u){
- // Owner label anchored beside the base's main buildings, as in DW5.
- // Airbase runway occupies the left side; put its label next to the hangar.
+ // DW5 draws owner names relative to each base layout, not to a fixed
+ // screen position. These anchors follow the troop-menu/command building
+ // in APEX's own artwork (airbase hangar or military garage).
  const label=BASE_PLAYER_NAMES[u.team]??'Player';
  const air=u.type==='airbase';
- const x=u.x+(air?25:-315),y=u.y+(air?-280:-160);
+ const anchor=air?{x:215,y:-380}:{x:348,y:-135};
+ const x=u.x+anchor.x,y=u.y+anchor.y;
  ctx.save();
- ctx.font='24px Arial, sans-serif';
- ctx.textAlign='left';
+ ctx.font='24px Verdana, sans-serif';
+ ctx.textAlign='center';
  ctx.textBaseline='alphabetic';
- ctx.lineJoin='round';
- ctx.lineWidth=3;
- ctx.strokeStyle='rgba(0,0,0,.85)';
- ctx.strokeText(label,x,y);
+ // Match DW5's three-pass offset text shadow.
+ ctx.fillStyle='rgba(0,0,0,.9)';
+ ctx.fillText(label,x+1,y+1);
+ ctx.fillText(label,x-1,y+1);
  ctx.fillStyle='#fff';
  ctx.fillText(label,x,y);
+ // Alliance is optional: do not invent a name for either player.
+ if(u.allianceName){
+  ctx.font='12px Verdana, sans-serif';
+  ctx.fillStyle='rgba(0,0,0,.9)';
+  ctx.fillText(u.allianceName,x+1,y+12);
+  ctx.fillStyle='#fff';
+  ctx.fillText(u.allianceName,x,y+11);
+ }
  ctx.restore();
 }
 function drawUnit(u){if(!TYPES[u.type].speed){actualBase(u);drawBasePlayerName(u);return}const def=nativeTroops[u.type],frame=((Math.round(18-u.angle*72/(Math.PI*2))-1)%72+72)%72;ctx.save();ctx.translate(u.x,u.y);
