@@ -1,0 +1,30 @@
+v0.75 - Factory menu icon refresh only
+- Factory upgrade button always displays the level-one factory artwork from the supplied DW5 screenshot.
+- Production buttons show the new 1h and 15h artwork from that screenshot.
+- Factory levels (1–20), building visuals, upgrades, production, animations and hover interactions are unchanged.
+- The supplied screenshot is low-resolution, so these are screenshot crops, not full-resolution original sprites.
+
+v0.64 - DW5 menu animation and position corrections
+- Explosion: 100 native 176x200 frames, quarter-scale drawing, continuous hover loop.
+- Half-timer clock: 72 native 75x71 frames at 30 frames per second.
+- Both actions show native frame 45 when not hovered; animations remain hover-only.
+- Command menu uses its actual 306px width instead of a hard-coded 252px offset.
+- Main unit menu activates at the airbase/military entrance, not terrain centre.
+- Unit menu uses native FD/KG entrance projection and FQbx/FQby screen offsets;
+  its grid is centred relative to the anchor instead of opening above/right.
+- Popups track zoom/camera changes, clamp to the viewport, and close on pan/removal.
+- Existing sandbox features, upgrade rules, terrain and layouts retained.
+
+Validation:
+- node --check game.js
+- node tests/menu-regressions.cjs
+- Verified encoded frame counts, frame dimensions, infinite loops and durations.
+- Animation exports can be regenerated with Python/Pillow:
+  python scripts/build-menu-animations.py
+
+v0.63 - Main base unit menu
+- Added a camera-anchored popup over the centre of military bases and airbases.
+- Four working unit buttons: Type 99, TanSAM, Apache, J-10.
+- Clicking a button deploys one unit for the base owner in sandbox mode.
+- Original upgrade hover menus, assets and animations preserved from v0.62.
+- This is not a verified one-to-one reproduction of the full DW5 troop catalog.

@@ -1,0 +1,137 @@
+*{box-sizing:border-box}body{margin:0;background:#101713;color:#dee6da;font:13px Arial,sans-serif;overflow:hidden}header{height:64px;background:#121b17;border-bottom:1px solid #344439;display:flex;align-items:center;gap:12px;padding:0 22px}.brand{font-size:22px;letter-spacing:2px;white-space:nowrap}.brand span{font-size:11px;display:inline-block;width:80px;line-height:15px;letter-spacing:1px;margin-left:9px}.brand small{font-size:9px;letter-spacing:1px;color:#89a074;margin-left:18px}.resources{margin-left:auto;font-size:9px;color:#9dafa0;word-spacing:8px}.resources b{color:#d6dfb7;font-size:20px;margin-right:12px}button,select{background:#202d25;color:#dde8d8;border:1px solid #405044;border-radius:3px;padding:10px;cursor:pointer;font:inherit}button:hover{background:#344936}button.active{border-color:#bad575;background:#36482b;color:#e3f2b9}main{display:flex;height:calc(100vh - 94px)}aside{width:250px;flex-shrink:0;background:#17221b;padding:23px 18px;display:flex;flex-direction:column;overflow:auto;border-right:1px solid #405044}.eyebrow{font-size:9px;letter-spacing:2px;color:#a1be79}h2{font-size:22px;font-weight:400;line-height:1.25;margin:12px 0 25px}label{font-size:9px;letter-spacing:1.6px;color:#99a993;margin:12px 0 9px}.teams{display:flex;gap:5px}.teams button{flex:1;font-size:11px}#blue{color:#78c7f6}#red{color:#f1937f}#catalog{display:grid;grid-template-columns:1fr 1fr;gap:6px}#catalog button{text-align:left;font-size:11px;padding:12px 8px}#catalog button span{font-size:20px;display:block;margin-bottom:8px;color:#abb99f}.wide{margin-top:12px}.instructions{font-size:11px;line-height:1.8;color:#a5b09f}.bottom{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:auto}aside small{font-size:10px;line-height:1.6;color:#778a77;margin-top:12px}#field{position:relative;flex:1;min-width:0;overflow:hidden;background:#687146}#game{width:100%;height:100%;display:block;touch-action:none}.maptag{position:absolute;top:20px;left:23px;background:#142019e8;border:1px solid #4a5c45;padding:11px 14px;font-size:10px;letter-spacing:1.5px;pointer-events:none}.maptag small{color:#9eae91;margin-left:18px;font-size:9px}.dot{display:inline-block;width:6px;height:6px;background:#c3df7b;border-radius:50%;margin-right:8px}.maptools{position:absolute;right:20px;top:20px;display:flex;gap:5px}.maptools button{font-size:19px;width:36px;padding:5px}#mini{position:absolute;right:20px;bottom:48px;background:#19251c;border:1px solid #859974}#notice{position:absolute;bottom:15px;left:20px;background:#152119e8;padding:11px 15px;color:#d4dfbf;font-size:11px;max-width:70%}#selection{position:absolute;right:20px;bottom:16px;font-size:10px;letter-spacing:1px}footer{height:30px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;font-size:9px;letter-spacing:1px;color:#96aa8c}@media(max-width:850px){.resources,.brand small{display:none}aside{width:200px;padding:15px 10px}header{padding:0 10px}.maptag small{display:none}#mini{width:140px;height:94px}h2{font-size:18px}footer span:last-child{display:none}}
+.brand span{width:124px}.brand small{margin-left:10px}@media(max-width:1000px){.brand small{display:none}.resources{word-spacing:2px}.resources b{margin-right:4px}}
+
+/* Keep the battlefield dominant, with a compact floating editor. */
+header{height:46px;padding:0 12px;background:#161b18eF}.brand{font-size:17px}.brand span{font-size:10px}.resources{font-size:9px}.resources b{font-size:18px}main{height:calc(100vh - 76px)}aside{position:absolute;z-index:5;left:12px;top:104px;max-height:calc(100vh - 165px);width:208px;background:#171c18ed;border:1px solid #686d5e;padding:12px;box-shadow:0 4px 15px #0008}h2{display:none}.eyebrow{margin-bottom:4px}.instructions{font-size:10px;margin:8px 0}.maptag{top:12px;left:12px}#catalog button{padding:6px;font-size:10px}#catalog button span{height:30px;width:50px;margin-bottom:4px;background-image:url('assets/gi/icons.jpg');background-size:4000px 30px;color:transparent}#catalog [data-type=tank] span{background-position:-1550px 0}#catalog [data-type=aa] span{background-position:-2650px 0}#catalog [data-type=heli] span{background-position:-1000px 0}#catalog [data-type=jet] span{background-position:-3150px 0}#catalog [data-type=base] span{background-position:0 0}#catalog [data-type=airbase] span{background-position:-2000px 0}label{margin-top:8px}.bottom{margin-top:8px}.bottom button{padding:6px}#mini{top:12px;bottom:auto}.maptools{right:245px;top:12px}#notice{left:235px;max-width:65%}aside small{font-size:9px}.resources{color:#d1d5c6}@media(max-width:700px){aside{width:170px}#notice{left:190px}.resources{display:none}#mini{width:130px;height:86px}.maptools{right:160px}}
+
+#editor-toggle{position:absolute;z-index:10;top:58px;left:12px;background:#17231eea;border-color:#74836b;padding:10px 14px}.maptag{left:190px}body.editor-hidden aside{display:none}body.editor-hidden #notice{left:20px}aside{top:103px}body.editor-hidden .maptag{left:190px}@media(max-width:700px){.maptag{display:none}}
+
+.upgrade-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px}.upgrade-grid button{font-size:10px;padding:6px}
+
+#base-hover-menu{position:absolute;z-index:12;width:252px;height:114px;background:#174968e8;border:1px solid #638da7;color:#eef7ff;box-shadow:0 2px 7px #0006;font:12px Arial,sans-serif;pointer-events:auto}#base-hover-menu[hidden]{display:none}#base-hover-title{font-weight:bold;font-size:14px;padding:3px 4px 0}#base-hover-detail{padding:0 4px;height:28px;line-height:13px}#base-hover-state{height:16px;padding:0 4px;text-align:right;font-size:11px;color:#bfddf5}#base-hover-icons{display:grid;grid-template-columns:repeat(4,1fr);height:46px}#base-hover-icons button{position:relative;display:flex;align-items:center;justify-content:center;padding:0;background:#a6c8d47a;border:1px solid #467593;border-radius:0;height:46px}#base-hover-icons button:hover{background:#c1dfebc9;border-color:white}#base-hover-icons img{max-height:42px;max-width:54px;object-fit:contain}#base-hover-icons button.maxed::after{content:'✓';position:absolute;inset:0;font:bold 42px Arial;color:#65f132;text-shadow:0 1px 2px #143e0f}.central-icon{display:block;width:60px;height:44px;background:url('assets/i/g5.png') left bottom/220px 36px no-repeat}
+
+#base-hover-icons button[hidden]{display:none}#base-hover-icons button[aria-disabled=true]:not(.maxed){opacity:.45;cursor:not-allowed}.ministry-icon,.extension-icon,.office-icon,.group-icon{display:block;width:58px;height:42px;background-repeat:no-repeat;background-position:left bottom}.ministry-icon{background-image:url('assets/i/g6.png');background-size:348px 42px}.extension-icon{background-image:url('assets/i/g7.png');background-size:290px 42px}.office-icon{background-image:url('assets/i/g9.png');background-size:174px 42px}.group-icon{background-image:url('assets/i/g8.png');background-size:174px 42px}
+
+#fps{color:#d5ebac;font-variant-numeric:tabular-nums;min-width:56px;text-align:center}
+
+#base-hover-icons img{width:56px;height:38px;max-width:56px;max-height:38px;object-fit:contain}#base-hover-icons button.maxed::after{content:"";background:url("assets/menu/complete.png") center/44px 44px no-repeat;text-shadow:none}
+
+/* Menu artwork uses the full tile, with towers sized independently of buildings. */
+#base-hover-icons img{width:60px;height:44px;max-width:none;max-height:none;object-fit:contain}
+#base-hover-icons button[data-base-upgrade="radar"] img,
+#base-hover-icons button[data-base-upgrade="jammer"] img,
+#base-hover-icons button[data-base-upgrade="detector"] img{width:38px;height:44px;object-fit:fill}
+
+#base-hover-icons img{image-rendering:auto}#base-hover-icons button[data-base-upgrade="extension"] img{width:60px;height:44px;object-fit:contain}
+
+#base-hover-icons img{image-rendering:auto}#base-hover-icons button[data-base-upgrade="extension"] img{width:60px;height:44px;object-fit:fill}
+
+/* DW5 draws factory previews at half native scale, beyond the tile edges. */
+#base-hover-icons button[data-base-upgrade="extension"]{z-index:2;overflow:visible}
+#base-hover-icons button[data-base-upgrade="extension"] img{position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);width:200px;height:80px;max-width:none;max-height:none;object-fit:fill;pointer-events:none;image-rendering:auto}
+
+#base-hover-icons button[data-base-upgrade="group"],
+#base-hover-icons button[data-base-upgrade="office"]{overflow:visible}
+#base-hover-icons button[data-base-upgrade="group"] img,
+#base-hover-icons button[data-base-upgrade="office"] img{position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);width:100px;height:80px;max-width:none;max-height:none;object-fit:fill;pointer-events:none;image-rendering:auto}
+
+#base-hover-icons button[data-base-upgrade="radar"] img,#base-hover-icons button[data-base-upgrade="detector"] img{width:56px;height:42px;object-fit:contain;image-rendering:auto}
+
+#base-hover-icons button[data-base-upgrade="jammer"]{overflow:visible}
+#base-hover-icons button[data-base-upgrade="jammer"] img{position:absolute;left:50%;bottom:-5px;transform:translateX(-50%);width:100px;height:80px;max-width:none;max-height:none;object-fit:fill;pointer-events:none;image-rendering:auto}
+
+/* v0.53 Base Command and production controls */
+#base-hover-menu:has([data-base-upgrade="command"]:not([hidden])){width:306px}
+#base-hover-menu:has([data-base-upgrade="command"]:not([hidden])) #base-hover-icons{grid-template-columns:repeat(5,1fr)}
+.command-mini{font:bold 34px/1 Arial,sans-serif;color:#e2e6e9;text-shadow:1px 2px 2px #143047}
+#production-panel{position:absolute;z-index:30;top:50%;left:50%;transform:translate(-50%,-50%);width:min(460px,92%);max-height:85%;overflow:auto;background:#14243b;color:#e5efff;border:1px solid #5a6f96;box-shadow:0 10px 35px #000b;padding:14px;font:13px Arial,sans-serif}
+#production-panel[hidden]{display:none}
+.production-head{display:flex;justify-content:space-between;align-items:center;font-size:17px}
+#production-panel button{background:#51468f;color:white;border:1px solid #837ac6;padding:8px;cursor:pointer}
+#production-panel button:hover{background:#7364b2}
+#production-close{min-width:32px}
+.production-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:12px 0}
+.production-grid button{min-height:45px}
+.production-grid small{display:block;font-size:10px;opacity:.8}
+#production-cancel{width:100%;margin:3px 0 12px}
+.production-map{display:flex;gap:7px;align-items:center;margin-bottom:12px}
+.production-map b{margin-right:auto}
+.production-map button.active{outline:2px solid #c5bafc}
+#production-panel>small{color:#afc0dc}
+
+/* v0.54: clearly visible completion tick on every fully upgraded building. */
+#base-hover-icons button.maxed::after{content:"✓";position:absolute;z-index:20;top:-7px;right:-4px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:2px solid #e7ffe7;border-radius:50%;background:#168d30;color:#fff;font:900 22px/1 Arial,sans-serif;text-shadow:0 1px 2px #063d13;box-shadow:0 1px 5px #001b09;pointer-events:none;transform:none}
+#base-hover-icons button.maxed{overflow:visible}
+
+/* v0.56: original DW5-style full-size diagonal green completion tick */
+#base-hover-icons button.maxed::after{content:"✓";position:absolute;z-index:20;inset:-7px -3px -3px -4px;width:auto;height:auto;display:flex;align-items:center;justify-content:center;border:0;border-radius:0;background:none;box-shadow:none;color:#48e13c;font:900 57px/1 Arial,sans-serif;text-shadow:1px 1px 0 #124e14,-1px -1px 0 #a4ff87,0 2px 2px #173f13;pointer-events:none;transform:rotate(-13deg)}
+#base-hover-icons button.maxed{overflow:visible}
+
+/* v0.57: Original DW5 checkmark overlay and Base Command sprite icons */
+#base-hover-icons button.maxed::after{content:"";position:absolute;inset:0;background:url("assets/menu/complete.png") center center/52px 52px no-repeat;pointer-events:none;z-index:2}
+#base-hover-menu:has([data-base-upgrade="command"]:not([hidden])) #base-hover-icons button img{width:54px;height:43px;object-fit:contain}
+
+/* Native fixed-cell DW5 sprite animations: retain original frame alignment */
+#base-hover-icons button[data-base-upgrade="startProduction"] img{width:43px;height:44px;object-fit:contain}
+#base-hover-icons button[data-base-upgrade="selfDestruct"] img{width:43px;height:44px;object-fit:contain}
+#base-hover-icons button[data-base-upgrade="halfTimer"] img{width:45px;height:44px;object-fit:contain}
+
+/* v0.61: clip only Base Command icons; preserve original oversized Ministry previews */
+#base-hover-menu:has([data-base-upgrade="command"]:not([hidden])) #base-hover-icons button{overflow:hidden;isolation:isolate}
+#base-hover-menu:has([data-base-upgrade="command"]:not([hidden])) #base-hover-icons button img[data-animation]{display:block;width:54px;height:43px;max-width:54px;max-height:43px;object-fit:contain;object-position:center center;flex-shrink:0}
+
+/* Independent base production menu: do not change the existing upgrade hover buttons. */
+#base-unit-menu{position:absolute;z-index:15;width:300px;background:rgba(20,65,91,.96);border:1px solid #8fb8d0;color:#eef8ff;box-shadow:0 3px 12px #0009;font:12px Arial,sans-serif;pointer-events:auto}
+#base-unit-menu[hidden]{display:none}.base-unit-header{display:flex;align-items:center;justify-content:space-between;background:#225b79;padding:5px 8px;font-size:14px}.base-unit-header button{color:white;background:transparent;border:0;cursor:pointer}#base-unit-subtitle{padding:6px 8px;color:#c4e4f2}#base-unit-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:4px}#base-unit-grid button{display:flex;flex-direction:column;align-items:center;justify-content:space-between;min-height:72px;background:#37718e;color:white;border:1px solid #699ab2;cursor:pointer;font:11px Arial,sans-serif;padding:4px}#base-unit-grid button:hover{background:#5d9dbd;border-color:white}#base-unit-grid img{width:54px;height:45px;object-fit:contain;object-position:left top}#base-unit-grid span{white-space:nowrap}.base-unit-footer{padding:5px 8px;color:#c7dce7;font-size:10px}
+
+/* v0.64: preserve native sprite cells; prevent flex/grid from resizing frames. */
+#base-hover-menu:has([data-base-upgrade="command"]:not([hidden])) #base-hover-icons button[data-base-upgrade="selfDestruct"] img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:50px;max-width:none;max-height:none;object-fit:fill}
+#base-hover-menu:has([data-base-upgrade="command"]:not([hidden])) #base-hover-icons button[data-base-upgrade="halfTimer"] img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:75px;height:71px;max-width:none;max-height:none;object-fit:fill}
+#base-unit-menu{max-width:calc(100% - 16px)}
+#base-hover-menu:has([data-base-upgrade="command"]:not([hidden])) #base-hover-icons button[data-base-upgrade="selfDestruct"],
+#base-hover-menu:has([data-base-upgrade="command"]:not([hidden])) #base-hover-icons button[data-base-upgrade="halfTimer"]{overflow:visible}
+
+/* v0.65: compact DW5 unit grid. Native thumbnails remain at their 60x40 size. */
+#base-unit-menu{width:242px;background:rgba(21,66,91,.88);border:1px solid #537b89;border-radius:0;box-shadow:none;font:12px/12px Arial,sans-serif;color:#fff}
+#base-unit-menu .base-unit-header{display:block;position:relative;height:50px;padding:0;background:rgba(13,53,75,.52);font:12px/12px Arial,sans-serif;overflow:hidden}
+#base-unit-title{font-size:14px;line-height:14px;white-space:nowrap;overflow:hidden}
+#base-unit-description,#base-unit-detail{max-width:164px;line-height:12px}
+#base-unit-menu .base-unit-cost{position:absolute;right:1px;bottom:1px;display:flex;flex-direction:column;align-items:flex-end;font:12px/12px Arial,sans-serif;text-shadow:1px 1px #183843}
+#base-unit-close{display:none}
+#base-unit-grid{display:grid;grid-template-columns:repeat(4,60px);gap:0;padding:0;background:transparent}
+#base-unit-grid button,#base-unit-grid .base-unit-empty{display:block;position:relative;width:60px;min-height:40px;height:40px;padding:0;border:1px solid #3c6578;border-radius:0;background:rgba(165,196,201,.47);overflow:visible}
+#base-unit-grid button:hover{background:rgba(197,223,225,.65);border-color:#c4e5ed}
+#base-unit-grid button[aria-disabled="true"]{cursor:default}
+#base-unit-grid img{display:block;width:60px;height:40px;max-width:none;object-fit:contain;object-position:center;pointer-events:none}
+#base-unit-grid .base-unit-upgrade img{width:58px;height:38px}
+#base-unit-grid .maxed::after{content:"";position:absolute;inset:0;background:url('assets/menu/complete.png') center/48px 48px no-repeat;pointer-events:none;z-index:2}
+#base-unit-grid .unit-limit-count{position:absolute;right:16px;top:8px;font:28px/28px Georgia,serif;color:#fff;text-shadow:2px 2px #173d4c;pointer-events:none}
+
+#base-unit-menu{background:rgba(21,66,91,.62)}#base-unit-grid button,#base-unit-grid .base-unit-empty{background:rgba(165,196,201,.40)}
+
+#base-unit-grid .base-unit-vehicle:hover{z-index:4}#base-unit-grid .base-unit-vehicle:hover img{transform:scale(1.42857)}
+
+#base-unit-grid .unit-limit-count{inset:0;right:auto;top:0;left:0;width:60px;height:40px;display:grid;place-items:center;font:28px/1 Georgia,serif;text-align:center;transform:translateY(-1px)}
+
+#base-unit-grid .queue-count{position:absolute;inset:0;width:60px;height:40px;overflow:visible;pointer-events:none;filter:drop-shadow(1px 1px 0 #143747)}
+
+/* Compact display, retaining DW5's 60x40 cells and 50px title-block proportions. */
+#base-unit-menu,#base-hover-menu{transform:scale(.85);transform-origin:top left;background:rgba(0,51,85,.50);border-color:rgba(110,156,177,.65);box-shadow:none;backdrop-filter:none}
+#base-unit-menu .base-unit-header{background:transparent}
+#base-unit-grid button,#base-unit-grid .base-unit-empty,#base-hover-icons button{background:rgba(255,255,255,.18);border-color:rgba(21,62,83,.65)}
+#base-unit-grid button:hover,#base-hover-icons button:hover{background:rgba(255,255,255,.35);border-color:rgba(195,224,236,.80)}
+#base-hover-menu{width:242px;height:92px;font:12px/12px Arial,sans-serif}
+#base-hover-title{height:14px;line-height:14px;padding:0;font-size:14px}
+#base-hover-detail{height:24px;line-height:12px;padding:0}
+#base-hover-state{height:12px;line-height:12px;padding:0}
+#base-hover-icons{height:40px}#base-hover-icons button{height:40px}
+#base-hover-menu:has([data-base-upgrade="command"]:not([hidden])){width:302px}
+#base-unit-carbon{color:#99ff99}#base-unit-carbon:empty{display:none}
+#base-unit-menu[data-kind="aircraft"] #base-unit-cost{color:#ff9999}
+#base-unit-menu[data-kind="aircraft"] .base-unit-cost{line-height:11px}
+#base-unit-menu[data-kind="aircraft"] #base-unit-grid .base-unit-vehicle img{position:absolute;left:50%;top:50%;width:96px;height:48px;object-fit:contain;transform:translate(-50%,-50%)}
+#base-unit-menu[data-kind="aircraft"] #base-unit-grid .base-unit-vehicle:hover img{transform:translate(-50%,-50%) scale(1.42857)}
+#factory-hover-menu{position:absolute;z-index:14;transform:scale(.85);transform-origin:top left;background:rgba(0,51,85,.5);border:1px solid rgba(110,156,177,.65);color:#eaf5fc;font:12px/12px Arial,sans-serif;pointer-events:auto}#factory-hover-menu[hidden]{display:none}#factory-hover-icons{display:flex;height:40px}#factory-hover-icons button{position:relative;flex:0 0 60px;width:60px;height:40px;padding:0;border:1px solid #467593;border-radius:0;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;overflow:visible}#factory-hover-icons button:hover{background:rgba(255,255,255,.35);border-color:white}#factory-hover-icons img{width:60px;height:54px;object-fit:contain;pointer-events:none}#factory-hover-icons .maxed:after{content:'✓';position:absolute;inset:0;font:bold 42px Arial;color:#65f132}.factory-hover-caption{min-height:52px;padding:2px 3px}#factory-hover-title{font-size:14px;font-weight:bold}#factory-hover-state,#factory-hover-cost{text-align:right;font-size:11px}.factory-duration{position:absolute;bottom:1px;right:2px;font-size:10px;text-shadow:0 1px 2px black}
+
+/* v0.75: native screenshot factory menu icon crops; no changes to factory logic. */
+#factory-hover-icons img{width:60px;height:36px;object-fit:fill}
