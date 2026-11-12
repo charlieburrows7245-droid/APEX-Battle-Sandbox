@@ -341,7 +341,41 @@ function drawTargetUnitHealth(u){
  if(ratio>0){ctx.strokeStyle='#00dd00';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+width*ratio,y);ctx.stroke();} // Remaining health
  ctx.restore();
 }
-function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=!!nativeTroops[type]?.air;const x=base.x+(base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced&&!produced.joinOrder){const offset=formationOffset(type,produced.groupSlot),exit=air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}updateDivisionMovement(dt);for(const u of units){const t=TYPES[u.type];if(u.formationOrder&&u.target){const error=Math.hypot(u.target.x-u.x,3*(u.target.y-u.y));const boost=1+Math.min(.55,Math.max(0,(error-troopSpacing(u.type)*.5)/Math.max(1,troopSpacing(u.type)*5)));moveTroopWithDrift(u,{...t,speed:t.speed*boost},dt);}else moveTroopWithDrift(u,t,dt);}updateDivisionCombat(dt);updatePendingGroupJoins();}
+// Resolve troop-on-troop overlap in screen-projected space (Y is rendered at 1/3 scale).
+// Spatial buckets avoid an O(n²) scan for large armies. This is positional only:
+// it never changes combat targets, damage, casualty order or firing timers.
+function separateOverlappingTroops(){
+ const cell=64,grid=new Map(),troops=units.filter(u=>u.hp>0&&TYPES[u.type]?.speed);
+ const key=(x,y)=>x+','+y;
+ for(const u of troops){
+  const x=Math.floor(u.x/cell),y=Math.floor(u.y*3/cell),k=key(x,y);
+  if(!grid.has(k))grid.set(k,[]);grid.get(k).push(u);
+ }
+ for(let pass=0;pass<2;pass++){
+  for(const u of troops){
+   const cx=Math.floor(u.x/cell),cy=Math.floor(u.y*3/cell);
+   for(let ix=cx-1;ix<=cx+1;ix++)for(let iy=cy-1;iy<=cy+1;iy++){
+    const bucket=grid.get(key(ix,iy));if(!bucket)continue;
+    for(const v of bucket){
+     if(v.id<=u.id)continue;
+     // Troops flying at altitude may pass over ground vehicles.
+     if(!!nativeTroops[u.type]?.air!==!!nativeTroops[v.type]?.air)continue;
+     const min=Math.min(44,Math.max(18,(troopSpacing(u.type)+troopSpacing(v.type))*.38));
+     let dx=v.x-u.x,dy=(v.y-u.y)*3,d2=dx*dx+dy*dy;
+     if(d2>=min*min)continue;
+     if(d2<.0001){const a=((u.id*71+v.id*37)%360)*Math.PI/180;dx=Math.cos(a);dy=Math.sin(a);d2=1;}
+     const dist=Math.sqrt(d2),push=(min-dist)*.5/dist;
+     const ox=dx*push,oy=dy*push/3;
+     u.x=Math.max(0,Math.min(WORLD_WIDTH,u.x-ox));u.y=Math.max(0,Math.min(WORLD_HEIGHT,u.y-oy));
+     v.x=Math.max(0,Math.min(WORLD_WIDTH,v.x+ox));v.y=Math.max(0,Math.min(WORLD_HEIGHT,v.y+oy));
+    }
+   }
+  }
+  // Rebuild buckets after the first pass so displaced units remain discoverable.
+  if(pass===0){grid.clear();for(const u of troops){const k=key(Math.floor(u.x/cell),Math.floor(u.y*3/cell));if(!grid.has(k))grid.set(k,[]);grid.get(k).push(u);}}
+ }
+}
+function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=!!nativeTroops[type]?.air;const x=base.x+(base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced&&!produced.joinOrder){const offset=formationOffset(type,produced.groupSlot),exit=air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}updateDivisionMovement(dt);for(const u of units){const t=TYPES[u.type];if(u.formationOrder&&u.target){const error=Math.hypot(u.target.x-u.x,3*(u.target.y-u.y));const boost=1+Math.min(.55,Math.max(0,(error-troopSpacing(u.type)*.5)/Math.max(1,troopSpacing(u.type)*5)));moveTroopWithDrift(u,{...t,speed:t.speed*boost},dt);}else moveTroopWithDrift(u,t,dt);}separateOverlappingTroops();updateDivisionCombat(dt);updatePendingGroupJoins();}
 // DW5 Xo(): seven position-hashed ground tiles, 850px columns,
 // 280px rows, odd rows offset by -400px; even rows are painted first.
 function groundVariant(x,y){let g=314159265+x*y;for(let i=0;i<2;i++){g^=g<<13;g^=g<<17;g^=g<<5;}return Math.abs(g)%7;}
