@@ -748,8 +748,8 @@ function weaponRange(group,target=null){
  if(group.type==='unit32'&&unitHasCategory(target?.type,'baseAttacker'))multiplier=2;
  if(group.type==='unit6'&&unitHasCategory(target?.type,'ground')&&(target?.firing||target?.moving))multiplier=2;
  if(group.type==='unit22'&&unitHasCategory(target?.type,'base')&&target?.firing)multiplier=3;
- // Retain the existing calibrated Type 99/TanSAM/Apache firing-target rule.
- if(target?.firing&&['tank','aa','heli'].includes(group.type))multiplier=Math.max(multiplier,2);
+ // Retain the existing calibrated Type 99/Apache firing-target rule.
+ if(target?.firing&&['tank','heli'].includes(group.type))multiplier=Math.max(multiplier,2);
  if(group.type==='jet'&&unitHasCategory(target?.type,'air')&&target?.firing)multiplier=3;
  return stat.range*90*multiplier;
 }
