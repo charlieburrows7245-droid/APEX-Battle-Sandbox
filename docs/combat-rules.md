@@ -16,3 +16,9 @@ All sandbox bases use Wall defences by default; Sandbag-only bases are not offer
 - Existing saves are migrated proportionally to the new turret HP. Long Range, upgrades, controls and other game mechanics are retained.
 
 Validation: `node tests/combat.test.cjs`.
+
+## Base range setting — release 1.12
+
+The owner approved provisional base defence ranges of **20 DW5-style map units normally and 40 with Long Range**. These are configurable in `BASE_WEAPON_RANGE_MAP` in `game.js`; they are gameplay estimates, not confirmed native DW5 maximum ranges. Both military bases and airbases use them, including max-upgrade previews. Targeting and selected range outlines share `weaponRange()`. The existing coordinate conversion (90 world units per range unit and 3:1 vertical projection), normal front-only restriction, Long Range rear coverage and target-lock behaviour are preserved. No health, armour, damage or troop-range settings changed.
+
+Range validation: `node tests/base-range.test.cjs`. The existing broad combat harness has a pre-existing parse failure from its function extraction and was not changed in this release.
