@@ -116,11 +116,13 @@ function drawBasePlayerName(u){
  // Place the airbase owner above the small main entrance building beside
  // the curved wall, matching the visual anchor in the DW5 reference.
  // APEX's base is assembled differently, so use its entrance anchor.
- const label=BASE_PLAYER_NAMES[u.team]??'Player';
+ const label=(BASE_PLAYER_NAMES[u.team]??'Player').toUpperCase();
  const air=u.type==='airbase';
  const entrance=baseEntrancePoint(u);
  const x=air?entrance.x-20:entrance.x;
- const y=entrance.y-110;
+ // DW5 places the label across the jammer/entrance area, not high above it.
+ // Keep the label attached to the entrance as the camera moves.
+ const y=entrance.y-65;
  ctx.save();
  ctx.font='24px Verdana, sans-serif';
  ctx.textAlign='start';
