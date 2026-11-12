@@ -27,11 +27,11 @@ const DW5_FORMATION_Y=[0,-1,1,1,-1,-2,0,2,0,-2,2,2,-2,-3,3,-3,3,-1,1,-1,1,-4,0,4
 let nextGroupId=0;
 function troopSpacing(type){return DW5_MENU_UNITS.find(e=>e.type===type)?.render?.spacing??48;}
 function formationOffset(type,index){
- // Howitzer divisions use a compact 7x7 formation, rather than the
- // 13-column spiral intended for smaller vehicles. Keep a single group.
+ // DW5's 49-member diamond uses the shared staggered slot coordinates.
+ // Howitzers have tighter centres than the default unit art spacing.
  if(type==='unit5'){
-  const slot=index%49,col=slot%7,row=Math.floor(slot/7),spacing=48;
-  return{x:(col-3)*spacing,y:(row-3)*spacing/3};
+  const slot=index%49,spacing=38;
+  return{x:DW5_FORMATION_X[slot]*spacing,y:DW5_FORMATION_Y[slot]*spacing/3};
  }
  return{x:DW5_FORMATION_X[index%49]*troopSpacing(type),y:DW5_FORMATION_Y[index%49]*troopSpacing(type)/3};
 }
