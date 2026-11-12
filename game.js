@@ -629,7 +629,18 @@ function updateDivisionCombat(dt){
    if(TYPES[g.type].speed)shots.push({x:u.x,y:u.y,tx:victim.x,ty:victim.y,life:.18,total:.18,kind});
    u.aimAngle=Math.atan2((victim.y-u.y)*3,victim.x-u.x);
   }
-  if(!TYPES[g.type].speed)shots.push({x:g.x,y:g.y,tx:victim.x,ty:victim.y,life:.18,total:.18,kind:'mg'});
+  if(!TYPES[g.type].speed){
+   const base=g.members[0],air=base.type==='airbase',orientation=air?3:1;
+   const ax=air?510:450,ay=air?150:130;
+   // One firing tracer per surviving turret, originating from its real sprite
+   // position. Every turret focuses on the same locked individual troop.
+   for(let j=0;j<(base.turretHealth?.length??0);j++){
+    if(!(base.turretHealth[j]>0))continue;
+    shots.push({x:base.x+ax+DW5_DEFENCE.x[orientation][j],
+     y:base.y+ay+DW5_DEFENCE.y[orientation][j]/3,
+     tx:victim.x,ty:victim.y,life:.18,total:.18,kind:'mg'});
+   }
+  }
   queueCombatSound(COMBAT_STATS[g.type]?.sound??'mg',g.x,g.y);
  }
  // Resolve together so array order never denies a division its return volley.
