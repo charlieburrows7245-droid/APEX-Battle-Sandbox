@@ -685,6 +685,41 @@ function formationSlotAt(type,slot,heading){
 // Division-level routing: inflate parked division bounds by the moving
 // formation's full half-width/height, then route the anchor around them.
 // Plan using the full projected footprint of a formation, not individual cars.
+// Deterministic right-of-way: a division with a higher group id yields to
+// a lower id when their short predicted corridors conflict.
+function divisionActualBox(members){
+ const radius=v=>Math.min(38,Math.max(18,troopSpacing(v.type)*.35));
+ return{l:Math.min(...members.map(v=>v.x-radius(v))),r:Math.max(...members.map(v=>v.x+radius(v))),
+        t:Math.min(...members.map(v=>v.y*3-radius(v))),b:Math.max(...members.map(v=>v.y*3+radius(v)))};
+}
+function divisionBoxesTouch(a,b,margin=0){
+ return a.l<b.r+margin&&a.r>b.l-margin&&a.t<b.b+margin&&a.b>b.t-margin;
+}
+function divisionProjectedBox(members,motion,seconds=.8){
+ const b=divisionActualBox(members);
+ if(!motion?.target)return b;
+ const dx=motion.target.x-motion.x,dy=(motion.target.y-motion.y)*3;
+ const length=Math.hypot(dx,dy);
+ if(length<1)return b;
+ const advance=Math.min(length,TYPES[members[0].type].speed*seconds);
+ const vx=dx/length*advance,vy=dy/length*advance;
+ return{l:Math.min(b.l,b.l+vx),r:Math.max(b.r,b.r+vx),
+        t:Math.min(b.t,b.t+vy),b:Math.max(b.b,b.b+vy)};
+}
+function divisionYieldDecisions(groups){
+ const yielding=new Set();
+ const active=groups.filter(g=>g.some(v=>v.formationOrder));
+ for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
+  const a=active[i],b=active[j];
+  if(!!nativeTroops[a[0].type]?.air!==!!nativeTroops[b[0].type]?.air)continue;
+  const am=divisionMotion.get(a[0].groupId),bm=divisionMotion.get(b[0].groupId);
+  if(!am||!bm)continue;
+  const ab=divisionProjectedBox(a,am),bb=divisionProjectedBox(b,bm);
+  if(!divisionBoxesTouch(ab,bb,24))continue;
+  yielding.add(a[0].groupId>b[0].groupId?a[0].groupId:b[0].groupId);
+ }
+ return yielding;
+}
 function divisionObstacleBoxes(motion,members){
  const air=!!nativeTroops[members[0].type]?.air;
  const offsets=members.map(v=>formationOffset(v.type,v.groupSlot??0));
@@ -702,7 +737,7 @@ function divisionObstacleBoxes(motion,members){
   // Reserve a short swept corridor in front of a moving formation.
   // This avoids head-on collisions even when both divisions have orders.
   const other=divisionMotion.get(group[0].groupId);
-  if(other?.target){
+  if(other?.target&&!motion._priorityPass){
    const dx=other.target.x-other.x,dy=(other.target.y-other.y)*3;
    const length=Math.hypot(dx,dy);
    if(length>1){
@@ -770,7 +805,9 @@ function divisionStepSafe(before,after,boxes){
 }
 function updateDivisionMovement(dt){
  const active=new Set();
- for(const members of troopGroups()){
+ const groups=troopGroups();
+ const yielding=divisionYieldDecisions(groups);
+ for(const members of groups){
   const order=members.find(u=>u.formationOrder)?.formationOrder;
   if(!order)continue;
   const id=members[0].groupId;active.add(id);
@@ -784,12 +821,19 @@ function updateDivisionMovement(dt){
    divisionMotion.set(id,motion);
   }
   motion.type=type;motion.groupId=id;motion._divisionAnchor=true;
+  motion._priorityPass=!yielding.has(id);
   const boxes=divisionObstacleBoxes(motion,members);
-  const routeGoal=divisionRouteGoal(motion,members,order,boxes);
   const oldAnchor={x:motion.x,y:motion.y};
-  motion.target=routeGoal;
-  if(routeGoal)moveTroopWithDrift(motion,TYPES[type],dt);
-  else motion.moveSpeed=0;
+  if(yielding.has(id)){
+   // Keep the original order and any route. Yield without moving the anchor.
+   motion.moveSpeed=0;
+   motion.target=null;
+  }else{
+   const routeGoal=divisionRouteGoal(motion,members,order,boxes);
+   motion.target=routeGoal;
+   if(routeGoal)moveTroopWithDrift(motion,TYPES[type],dt);
+   else motion.moveSpeed=0;
+  }
   if(!divisionStepSafe(oldAnchor,motion,boxes)){
    motion.x=oldAnchor.x;motion.y=oldAnchor.y;motion.moveSpeed=0;
    motion.divisionRoute=null;
