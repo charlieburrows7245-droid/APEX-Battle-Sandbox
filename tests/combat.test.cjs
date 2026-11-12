@@ -11,6 +11,7 @@ reset([unit('aa',0,0,0,1),unit('heli',0,880,1,2)]);updateDivisionCombat(.01);ass
 reset([unit('tank',0,0,0,1),unit('tank',0,245,1,2)]);updateDivisionCombat(.01);assert.equal(shots.length,0,'vertical distance scaled');
 reset([unit('tank',0,0,0,1),unit('tank',300,0,2,2)]);updateDivisionCombat(.01);assert.equal(shots.length,0,'allies protected');
 assert(Math.abs(shotDamage(unit('aa',0,0),unit('heli',0,0))-1000/30)<1e-8);assert(Math.abs(shotDamage(unit('heli',0,0),unit('tank',0,0))-2500/107*1.6)<1e-8);
+assert.equal(shotDamage(unit('heli',0,0),unit('base',0,0)),12.5,'Wall armour reduces unit firepower');
 reset([unit('tank',0,0,0,1),unit('tank',10,0,1,2)]);for(const u of units)u.hp=1;updateDivisionCombat(.01);assert.equal(shots.length,2);assert.equal(units.length,0,'simultaneous lethal return volleys');
 
 reset(group('tank',0,0,0,1,49));let targetGroup=combatGroups()[0];syncGroupHealthCapacity(targetGroup);
@@ -26,17 +27,17 @@ reset(group('tank',0,0,0,1,49));for(let second=0;second<10;second++){updateDivis
 reset([...group('tank',0,0,0,1,49),...group('tank',700,0,1,2,49),...group('tank',710,0,1,3,49)]);updateDivisionCombat(.01);assert.equal(units.filter(u=>u.team===0).length,48,'multiple attacking divisions cannot bypass casualty limit');
 reset(group('tank',0,0,0,1,49));targetGroup=combatGroups()[0];syncGroupHealthCapacity(targetGroup);applyGroupDamage(targetGroup,1e9);updateDivisionCombat(10);assert.equal(units.length,48,'no delayed damage debt');
 const base=unit('base',0,0);base.defenceGuns=2;base.wallLevel=1;syncBaseDefenceHealth(base);
-assert.equal(base.hp,1000);assert.equal(baseMaxHealth(base),1000);assert.equal(baseGunCount(base),2);
+assert.equal(base.hp,130000);assert.equal(baseMaxHealth(base),130000);assert.equal(baseGunCount(base),2);
 let bg={type:'base',members:[base]};assert.equal(weaponRange(bg),210);base.specialUpgrades={range:true};assert.equal(weaponRange(bg),420);
-applyGroupDamage(bg,100);assert.deepEqual(base.turretHealth,[500,400]);assert.equal(base.hp,900);
-base.wallLevel=2;syncBaseDefenceHealth(base);assert.deepEqual(base.turretHealth,[5000,4000]);assert.equal(baseMaxHealth(base),10000);
-const baseSaved=JSON.parse(JSON.stringify(base));syncBaseDefenceHealth(baseSaved);assert.equal(baseSaved.hp,9000,'load preserves wall and damage');
-base.wallLevel=1;syncBaseDefenceHealth(base);assert.equal(base.hp,900,'removing wall preserves fraction');
-applyGroupDamage(bg,1e9);assert.equal(baseGunCount(base),1);assert.equal(base.hp,500);applyGroupDamage(bg,1e9);assert.equal(baseGunCount(base),1,'turret casualty limit');
-assert(upgradeBaseFlak(base));assert.equal(base.hp,1000,'rebuild destroyed gun');assert.equal(baseGunCount(base),2);
-base.maxUpgraded=true;base.wallLevel=2;syncBaseDefenceHealth(base);assert.equal(baseGunCount(base),50);assert.equal(baseMaxHealth(base),250000);
-base.maxUpgraded=false;base.wallLevel=1;base.defenceGuns=2;resetBaseDefenceHealth(base);assert.deepEqual(base.turretHealth,[500,500]);assert.equal(base.hp,1000);
-const legacy=unit('base',0,0);legacy.hp=250;legacy.defenceGuns=2;syncBaseDefenceHealth(legacy);assert.deepEqual(legacy.turretHealth,[250,0],'old save migrates without healing');
+applyGroupDamage(bg,100);assert.deepEqual(base.turretHealth,[65000,64900]);assert.equal(base.hp,129900);
+base.wallLevel=2;syncBaseDefenceHealth(base);assert.deepEqual(base.turretHealth,[65000,64900]);assert.equal(baseMaxHealth(base),130000);
+const baseSaved=JSON.parse(JSON.stringify(base));syncBaseDefenceHealth(baseSaved);assert.equal(baseSaved.hp,129900,'load preserves wall and damage');
+base.wallLevel=1;syncBaseDefenceHealth(base);assert.equal(base.hp,129900,'wall selection does not alter HP');
+applyGroupDamage(bg,1e9);assert.equal(baseGunCount(base),1);assert.equal(base.hp,65000);applyGroupDamage(bg,1e9);assert.equal(baseGunCount(base),1,'turret casualty limit');
+assert(upgradeBaseFlak(base));assert.equal(base.hp,130000,'rebuild destroyed gun');assert.equal(baseGunCount(base),2);
+base.maxUpgraded=true;base.wallLevel=2;syncBaseDefenceHealth(base);assert.equal(baseGunCount(base),50);assert.equal(baseMaxHealth(base),3250000);
+base.maxUpgraded=false;base.wallLevel=1;base.defenceGuns=2;resetBaseDefenceHealth(base);assert.deepEqual(base.turretHealth,[65000,65000]);assert.equal(base.hp,130000);
+const legacy=unit('base',0,0);legacy.hp=250;legacy.defenceGuns=2;syncBaseDefenceHealth(legacy);assert.deepEqual(legacy.turretHealth,[16250,0],'old save migrates without healing');
 console.log('PASS: reverse-slot damage, summed health, one casualty/sec, discarded overkill, persisted cooldown, turret pools, wall x10, range x2, rebuild and legacy-save migration.');
 
 console.log('PASS: 49-member volleys, cooldown, 3x helicopter range, firing bonuses, projected distances, allies, damage stats, simultaneous combat.');
