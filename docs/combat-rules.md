@@ -17,8 +17,8 @@ All sandbox bases use Wall defences by default; Sandbag-only bases are not offer
 
 Validation: `node tests/combat.test.cjs`.
 
-## Base range setting — release 1.12
+## Base range rollback — release 1.13
 
-The owner approved provisional base defence ranges of **20 DW5-style map units normally and 40 with Long Range**. These are configurable in `BASE_WEAPON_RANGE_MAP` in `game.js`; they are gameplay estimates, not confirmed native DW5 maximum ranges. Both military bases and airbases use them, including max-upgrade previews. Targeting and selected range outlines share `weaponRange()`. The existing coordinate conversion (90 world units per range unit and 3:1 vertical projection), normal front-only restriction, Long Range rear coverage and target-lock behaviour are preserved. No health, armour, damage or troop-range settings changed.
+Reverted the enlarged release 1.12 range on the owner's request. Military bases and airbases again use **12 range units normally and 20 with Long Range**, as before release 1.12. `BASE_WEAPON_RANGE_MAP` configures both targeting and selected range outlines. Existing projection, front/rear rules, target selection, health, armour and damage are unchanged. These are sandbox range settings, not verified exact DW5 values.
 
-Range validation: `node tests/base-range.test.cjs`. The existing broad combat harness has a pre-existing parse failure from its function extraction and was not changed in this release.
+Validation: `node tests/base-range.test.cjs`. The broad combat harness's pre-existing extraction/parse failure remains outside this rollback.
