@@ -435,7 +435,14 @@ function fitFactoryMenuIcon(im){const w=im.naturalWidth||im.width,h=im.naturalHe
 // Separate hull/turret angles, using DW5's idle target rule (2%/50ms, +/-5 headings).
 const troopAnimationStates=new WeakMap();
 function turnToward(angle,target,step){const d=Math.atan2(Math.sin(target-angle),Math.cos(target-angle));return angle+Math.sign(d)*Math.min(Math.abs(d),step);}
-function advanceTroopAnimation(state,u,dt,random=Math.random){dt=Math.min(.1,Math.max(0,dt));state.time+=dt;const moving=!!u.target,oldBody=state.body;state.body=moving?u.angle:turnToward(state.body,u.angle,dt*3);state.idleAim+=Math.atan2(Math.sin(state.body-oldBody),Math.cos(state.body-oldBody));state.idleClock+=dt;while(state.idleClock>=.05){state.idleClock-=.05;if(!nativeTroops[u.type].air&&random()<.02)state.idleAim=state.body+(random()-.5)*Math.PI*5/18;}const attacking=Number.isFinite(u.aimAngle)&&last<(u.aimUntil??0);const goal=attacking?u.aimAngle:nativeTroops[u.type].air?state.body:state.idleAim;state.turret=turnToward(state.turret,goal,dt*1.5);state.moving=moving;return state;}
+function advanceTroopAnimation(state,u,dt,random=Math.random){dt=Math.min(.1,Math.max(0,dt));state.time+=dt;const moving=!!u.target,oldBody=state.body;const attacking=Number.isFinite(u.aimAngle)&&last<(u.aimUntil??0);const air=!!nativeTroops[u.type].air;
+// Aircraft have no independent turret: visually face their current enemy while firing.
+// Ground vehicles keep their moving hull direction and turn only the weapon layer.
+const bodyGoal=air&&attacking?u.aimAngle:u.angle;
+state.body=air&&attacking?turnToward(state.body,bodyGoal,dt*3):moving?u.angle:turnToward(state.body,bodyGoal,dt*3);
+state.idleAim+=Math.atan2(Math.sin(state.body-oldBody),Math.cos(state.body-oldBody));state.idleClock+=dt;while(state.idleClock>=.05){state.idleClock-=.05;if(!air&&random()<.02)state.idleAim=state.body+(random()-.5)*Math.PI*5/18;}
+const goal=attacking?u.aimAngle:air?state.body:state.idleAim;
+state.turret=turnToward(state.turret,goal,dt*(attacking?3:1.5));state.moving=moving;return state;}
 function troopAnimation(u){let state=troopAnimationStates.get(u);if(!state){state={body:u.angle,turret:u.angle,idleAim:u.angle,idleClock:0,time:u.id*.137,updatedAt:last,moving:!!u.target};troopAnimationStates.set(u,state);}const dt=paused?0:Math.min(.1,Math.max(0,(last-state.updatedAt)/1000))*speed;state.updatedAt=last;return advanceTroopAnimation(state,u,dt);}
 function headingFrame(angle){return ((17+angle*36/Math.PI)%72+72)%72;}
 function drawTroopHeading(im,angle,x,y){if(im?.complete&&im.naturalWidth)drawSmoothTurret(im,headingFrame(angle),x,y);}
