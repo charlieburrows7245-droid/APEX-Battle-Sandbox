@@ -144,3 +144,5 @@ header{height:46px;padding:0 12px;background:#161b18eF}.brand{font-size:17px}.br
 .cancel-production-actions{display:flex;justify-content:center;gap:9px}
 .cancel-production-actions button{min-width:62px;height:44px;border:0;border-radius:0;background:#413dcb;box-shadow:0 4px #22224b;color:#fff;font:14px Arial;cursor:pointer}
 .cancel-production-actions button:hover{background:#5752e2}
+
+#factory-hover-icons .factory-hours-label{position:absolute;left:0;right:0;top:7px;color:#fff3b4;font:bold 18px/20px Arial;text-align:center;text-shadow:1px 2px 1px #000,-1px -1px 1px #000;pointer-events:none}#factory-hover-icons .factory-cancel .factory-hours-label{display:none}
