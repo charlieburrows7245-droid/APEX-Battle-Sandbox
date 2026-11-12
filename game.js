@@ -364,7 +364,7 @@ function troopPathGoal(u,goal){
  };
  // Continue the selected route instead of switching sides every frame.
  const saved=u.troopDetour;
- if(saved&&pointDistance(saved.destination,dest)<12){
+ if(saved&&saved.destination&&Array.isArray(saved.points)&&pointDistance(saved.destination,dest)<12){
   while(saved.points.length&&pointDistance(pos,saved.points[0])<14)saved.points.shift();
   if(saved.points.length)return{x:saved.points[0].x,y:saved.points[0].y/3};
   u.troopDetour=null;
@@ -414,6 +414,10 @@ function preventTroopPenetration(u,oldX,oldY){
   const min=Math.min(38,Math.max(18,troopSpacing(u.type)*.35))+Math.min(38,Math.max(18,troopSpacing(v.type)*.35));
   const dx=u.x-v.x,dy=(u.y-v.y)*3;
   if(dx*dx+dy*dy>=min*min)continue;
+  // Existing overlaps must be allowed to resolve: reject only a step
+  // that moves further into the blocker, never a step away from it.
+  const oldDx=oldX-v.x,oldDy=(oldY-v.y)*3;
+  if(dx*dx+dy*dy>=oldDx*oldDx+oldDy*oldDy-0.0001)continue;
   // Reject only the mover's attempted step. The blocker stays firm.
   u.x=oldX;u.y=oldY;u.moveSpeed=0;return;
  }
