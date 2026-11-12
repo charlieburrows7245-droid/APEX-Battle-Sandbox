@@ -251,7 +251,8 @@ function drawBaseProduction(u){
 // Death effects are cosmetic. Destroyed units leave combat immediately.
 const deathEffects=[];
 const deathDebrisArt=new Image();deathDebrisArt.src='assets/i/truemmer.png';
-const deathExplosionArt=new Image();deathExplosionArt.src='assets/i/fireball.png';
+const deathExplosionArt=new Image();deathExplosionArt.src='https://5.deltawars.com/i/heliexplo1a.png';
+const deathSmokeArt=new Image();deathSmokeArt.src='https://5.deltawars.com/i/heliexplo1b.png';
 function registerTroopDeath(u){
  if(!TYPES[u.type]?.speed)return;
  deathEffects.push({type:u.type,x:u.x,y:u.y,heading:troopAnimation(u).body,age:0,
@@ -278,15 +279,15 @@ function drawDeathEffects(){
     const p=(t-1.35)/.9;
     const x=e.x+e.driftX,y=e.y+e.driftY+24;
     ctx.translate(x,y);ctx.globalAlpha=Math.max(0,1-p);
-    const radius=8+55*Math.sin(Math.min(1,p)*Math.PI*.85);
-    const glow=ctx.createRadialGradient(0,0,1,0,0,radius);
-    glow.addColorStop(0,'rgba(255,255,224,.95)');glow.addColorStop(.35,'rgba(255,180,50,.85)');glow.addColorStop(1,'rgba(70,60,55,0)');
-    ctx.fillStyle=glow;ctx.beginPath();ctx.arc(0,0,radius,0,Math.PI*2);ctx.fill();
-    // DW5 explosion art, where available, over the procedural flash.
+    // Actual DW5 helicopter explosion sprite sheets extracted from the HAR.
+    // heliexplo1a: 100 frames at 80x83; heliexplo1b: 150 at 59x39.
     if(deathExplosionArt.complete&&deathExplosionArt.naturalWidth){
-     const frames=8,fw=deathExplosionArt.naturalWidth/frames;
-     const frame=Math.min(frames-1,Math.floor(p*frames));
-     ctx.drawImage(deathExplosionArt,frame*fw,0,fw,deathExplosionArt.naturalHeight,-38,-38,76,76);
+     const frames=100,fw=80,fh=83,frame=Math.min(frames-1,Math.floor(p*frames));
+     ctx.drawImage(deathExplosionArt,frame*fw,0,fw,fh,-40,-41.5,80,83);
+    }
+    if(deathSmokeArt.complete&&deathSmokeArt.naturalWidth){
+     const frames=150,fw=59,fh=39,frame=Math.min(frames-1,Math.floor(p*frames));
+     ctx.drawImage(deathSmokeArt,frame*fw,0,fw,fh,-29.5,-19.5,59,39);
     }
    }
   }else{
