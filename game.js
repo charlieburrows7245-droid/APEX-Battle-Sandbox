@@ -598,6 +598,16 @@ function baseTargetUnit(base,groups){
  owner.baseTargetId=target.id;owner.baseTargetGroupId=target.groupId;
  return target;
 }
+// Match applyGroupDamage: incoming fire hits the last surviving turret slot.
+function targetedTurretPoint(base){
+ const health=base.turretHealth??[];
+ let slot=health.length-1;
+ while(slot>=0&&!(health[slot]>0))slot--;
+ if(slot<0)return{x:base.x,y:base.y};
+ const air=base.type==='airbase',orientation=air?3:1;
+ return{x:base.x+(air?510:450)+DW5_DEFENCE.x[orientation][slot],
+  y:base.y+(air?150:130)+DW5_DEFENCE.y[orientation][slot]/3};
+}
 function updateDivisionCombat(dt){
  combatClock+=dt;for(const u of units)u.casualtyCooldown=Math.max(0,(Number(u.casualtyCooldown)||0)-dt);shots.forEach(s=>s.life-=dt);shots=shots.filter(s=>s.life>0);
  const groups=combatGroups(),damage=[],liveKeys=new Set();
@@ -626,7 +636,7 @@ function updateDivisionCombat(dt){
    const kind=COMBAT_STATS[u.type]?.sound??'mg';
    // Base turrets contribute to one focused volley, not separate visible
    // shots scattered across the formation.
-   if(TYPES[g.type].speed)shots.push({x:u.x,y:u.y,tx:victim.x,ty:victim.y,life:.18,total:.18,kind});
+   if(TYPES[g.type].speed){const impact=TYPES[victim.type].speed?{x:victim.x,y:victim.y}:targetedTurretPoint(victim);shots.push({x:u.x,y:u.y,tx:impact.x,ty:impact.y,life:.18,total:.18,kind});}
    u.aimAngle=Math.atan2((victim.y-u.y)*3,victim.x-u.x);
   }
   if(!TYPES[g.type].speed){
