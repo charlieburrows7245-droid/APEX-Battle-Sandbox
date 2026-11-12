@@ -4,6 +4,10 @@ let seq=0;function unit(type,x,y,side=0,groupId=1,slot=0){return{id:++seq,type,x
 function reset(list){units=list;shots=[];combatCooldowns.clear();attackerCasualtyTimes.clear();combatClock=0;}
 function group(type,x,y,side,id,count){return Array.from({length:count},(_,i)=>{const o=formationOffset(type,i);return unit(type,x+o.x,y+o.y,side,id,i);});}
 reset([...group('tank',0,0,0,1,49),...group('tank',700,0,1,2,49)]);updateDivisionCombat(.01);assert.equal(shots.length,98,'every member of both divisions fires');assert(shots.some(s=>s.x<0),'rear members fire too');assert.equal(units.length,96);const firstHp=units.reduce((n,u)=>n+u.hp,0);updateDivisionCombat(.2);assert.equal(units.reduce((n,u)=>n+u.hp,0),firstHp,'cooldown');
+reset([...group('heli',0,0,0,1,49),...group('heli',700,0,1,2,49)]);
+updateDivisionCombat(.01);assert.equal(units.filter(u=>u.team===1&&u.hp>0).length,48,'first Apache volley kills one');
+updateDivisionCombat(.8);assert.equal(units.filter(u=>u.team===1&&u.hp>0).length,48,'no second Apache volley before one second');
+updateDivisionCombat(.2);assert.equal(units.filter(u=>u.team===1&&u.hp>0).length,47,'second Apache casualty at one-second interval');
 const aa={type:'aa',members:[unit('aa',0,0)]};assert.equal(weaponRange(aa),900);assert.equal(weaponRange(aa,{type:'heli',members:[]}),2700);assert.equal(weaponRange(aa,{type:'jet',members:[]}),900);assert.equal(weaponRange(aa,{type:'heli',members:[],firing:true}),2700);assert.equal(weaponRange(aa,{type:'tank',members:[],firing:true}),1800);
 reset([unit('aa',0,0,0,1),unit('heli',2600,0,1,2)]);updateDivisionCombat(.01);assert.equal(shots.length,1);assert.equal(shots[0].kind,'rak');assert(units.find(u=>u.type==='heli').hp<100);
 reset([unit('aa',0,0,0,1),unit('heli',2800,0,1,2)]);updateDivisionCombat(.01);assert.equal(shots.length,0,'helicopter beyond 3x');
