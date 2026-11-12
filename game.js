@@ -65,6 +65,7 @@ function issueMove(w){
  for(const group of groups)for(const u of group){
   delete u.joinOrder;
   u.formationOrder={x,y};
+  u.baseDetour=null;u.stuckSample=null;u.trappedFor=0;
  }
  const n=groups.reduce((sum,g)=>sum+g.length,0);
  if(n){notice('Movement order: '+groups.length+' groups · '+n+' troops');addOrderMarker(w.x,w.y,'move');}
@@ -460,22 +461,26 @@ function recoverTrappedGroundTroops(dt){
   if(!goal){u.trappedFor=0;u.stuckSample=null;continue;}
   const remaining=Math.hypot(goal.x-u.x,(goal.y-u.y)*3);
   if(remaining<radius(u)*.5){u.trappedFor=0;u.stuckSample=null;continue;}
-  const nearBlocker=ground.some(v=>v!==u&&v.groupId!==u.groupId&&
+  const nearBlocker=ground.some(v=>v!==u&&
    Math.hypot(u.x-v.x,(u.y-v.y)*3)<radius(u)+radius(v)+20);
+  const nearBase=bases.some(b=>{
+   const dx=u.x-b.x,dy=u.y-b.y;
+   return dx*dx/((b.rx+65)**2)+dy*dy/((b.ry+65)**2)<1;
+  });
   // Check real displacement over time: touching vehicles can be deadlocked
   // without technically overlapping.
   if(!u.stuckSample)u.stuckSample={x:u.x,y:u.y,elapsed:0};
   const sample=u.stuckSample;sample.elapsed+=dt;
   if(sample.elapsed>=.6){
    const travelled=Math.hypot(u.x-sample.x,(u.y-sample.y)*3);
-   u.trappedFor=nearBlocker&&travelled<5?(u.trappedFor||0)+sample.elapsed:0;
+   u.trappedFor=(nearBlocker||nearBase)&&travelled<5?(u.trappedFor||0)+sample.elapsed:0;
    sample.x=u.x;sample.y=u.y;sample.elapsed=0;
   }
   if((u.trappedFor||0)<1.8)continue;
   // Try the closest empty location first, biased towards the active target.
   const direction=Math.atan2((goal.y-u.y)*3,goal.x-u.x);
   let found=null;
-  for(const dist of [32,48,72,100,140,190,260,340]){
+  for(const dist of [32,48,72,100,140,190,260,340,460,600,800,1050,1350]){
    for(let i=0;i<24;i++){
     const angle=direction+(i%2===0?1:-1)*Math.ceil(i/2)*Math.PI/12;
     const x=u.x+Math.cos(angle)*dist,y=u.y+Math.sin(angle)*dist/3;
@@ -486,6 +491,10 @@ function recoverTrappedGroundTroops(dt){
   if(found){
    u.x=found.x;u.y=found.y;u.moveSpeed=0;
    u.baseDetour=null;u.troopDetour=null;
+   // An old virtual anchor can remain wedged inside the same wall and
+   // immediately pull the recovered vehicle back into the obstruction.
+   // Rebuild it from actual members on the next update.
+   if(u.formationOrder)divisionMotion.delete(u.groupId);
    u.trappedFor=0;u.stuckSample=null;
   }else u.trappedFor=.9;
  }
