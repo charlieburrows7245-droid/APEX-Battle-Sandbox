@@ -346,62 +346,30 @@ function drawTargetUnitHealth(u){
 // Route moving troops around the entire footprint of a stationary division.
 // All geometry uses screen-projected coordinates (Y * 3), matching vehicle spacing.
 function troopPathGoal(u,goal){
- const air=!!nativeTroops[u.type]?.air;
- const sx=u.x,sy=u.y*3,gx=goal.x,gy=goal.y*3;
- const dx=gx-sx,dy=gy-sy,len=Math.hypot(dx,dy);
- if(len<1)return goal;
+ const air=!!nativeTroops[u.type]?.air,dx=goal.x-u.x,dy=(goal.y-u.y)*3,len=Math.hypot(dx,dy);
+ if(len<.01)return goal;
  const radius=v=>Math.min(38,Math.max(18,troopSpacing(v.type)*.35));
- const clearance=radius(u)+12;
- const groups=troopGroups(units.filter(v=>v.hp>0&&v.groupId!==u.groupId&&!!nativeTroops[v.type]?.air===air));
- let nearest=null,nearestT=Infinity;
- for(const members of groups){
-  // A travelling division is not a fixed obstacle: avoid its individual
-  // members with penetration checks, without forcing a permanent detour.
-  if(members.some(v=>v.target||v.formationOrder||Math.abs(v.moveSpeed||0)>.2))continue;
-  const left=Math.min(...members.map(v=>v.x-radius(v)))-clearance;
-  const right=Math.max(...members.map(v=>v.x+radius(v)))+clearance;
-  const top=Math.min(...members.map(v=>v.y*3-radius(v)))-clearance;
-  const bottom=Math.max(...members.map(v=>v.y*3+radius(v)))+clearance;
-  // Slab intersection: does the route cross the stationary division?
-  let enter=0,leave=1;
-  for(const [p,d,lo,hi] of [[sx,dx,left,right],[sy,dy,top,bottom]]){
-   if(Math.abs(d)<1e-6){if(p<lo||p>hi){enter=2;break;}continue;}
-   const t1=(lo-p)/d,t2=(hi-p)/d;
-   enter=Math.max(enter,Math.min(t1,t2));leave=Math.min(leave,Math.max(t1,t2));
-  }
-  if(enter>leave||leave<0||enter>1)continue;
-  // If the troop is already inside the footprint, guide it out, not deeper in.
-  const candidate={left,right,top,bottom,enter,members};
-  if(enter<nearestT){nearestT=enter;nearest=candidate;}
+ const others=units.filter(v=>v!==u&&v.hp>0&&TYPES[v.type]?.speed&&v.groupId!==u.groupId&&!!nativeTroops[v.type]?.air===air);
+ // Reuse a detour while it remains necessary; do not recalculate its side every frame.
+ if(u.troopDetour){
+  const p=u.troopDetour,dist=Math.hypot(p.x-u.x,(p.y-u.y)*3);
+  if(dist>8&&Math.hypot(p.destination.x-goal.x,(p.destination.y-goal.y)*3)<15)return p.waypoint;
+  u.troopDetour=null;
  }
- if(!nearest){u.troopDetour=null;return goal;}
- const b=nearest;
- // Keep a chosen side while navigating this specific obstacle.
- const groupId=b.members[0].groupId;
- if(u.troopDetour?.groupId===groupId&&
-    Math.hypot(u.troopDetour.destination.x-gx,u.troopDetour.destination.y-gy)<20){
-  const p=u.troopDetour.waypoint;
-  if(Math.hypot(p.x-sx,p.y-sy)>12)return{x:p.x,y:p.y/3};
+ let blocker=null,first=Infinity;
+ for(const v of others){
+  const vx=v.x-u.x,vy=(v.y-u.y)*3,t=Math.max(0,Math.min(1,(vx*dx+vy*dy)/(len*len)));
+  const px=vx-t*dx,py=vy-t*dy,clearance=radius(u)+radius(v)+6;
+  if(px*px+py*py>=clearance*clearance)continue;
+  const along=t*len;if(along<first){first=along;blocker=v;}
  }
- const margin=14;
- const corners=[
-  {x:b.left-margin,y:b.top-margin},{x:b.left-margin,y:b.bottom+margin},
-  {x:b.right+margin,y:b.top-margin},{x:b.right+margin,y:b.bottom+margin}
- ];
- // Prefer a corner that is reachable without cutting through the footprint.
- const clear=(p)=>{
-  let t0=0,t1=1,ddx=p.x-sx,ddy=p.y-sy;
-  for(const [pos,d,lo,hi] of [[sx,ddx,b.left,b.right],[sy,ddy,b.top,b.bottom]]){
-   if(Math.abs(d)<1e-6){if(pos<lo||pos>hi)return true;continue;}
-   const a=(lo-pos)/d,c=(hi-pos)/d;t0=Math.max(t0,Math.min(a,c));t1=Math.min(t1,Math.max(a,c));
-  }
-  return t0>t1||t1<0||t0>1;
- };
- const options=corners.filter(clear);
- const candidates=options.length?options:corners;
- const chosen=candidates.reduce((best,p)=>!best||Math.hypot(p.x-sx,p.y-sy)+Math.hypot(gx-p.x,gy-p.y)<Math.hypot(best.x-sx,best.y-sy)+Math.hypot(gx-best.x,gy-best.y)?p:best,null);
- u.troopDetour={groupId,destination:{x:gx,y:gy},waypoint:chosen};
- return{x:Math.max(0,Math.min(WORLD_WIDTH,chosen.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,chosen.y/3))};
+ if(!blocker)return goal;
+ const bx=blocker.x-u.x,by=(blocker.y-u.y)*3,side=Math.sign(dx*by-dy*bx)||((u.id%2)?1:-1);
+ const clearance=radius(u)+radius(blocker)+14;
+ const perpX=-dy/len*side,perpY=dx/len*side;
+ const waypoint={x:Math.max(0,Math.min(WORLD_WIDTH,blocker.x+perpX*clearance+dx/len*clearance*.55)),y:Math.max(0,Math.min(WORLD_HEIGHT,blocker.y+(perpY*clearance+dy/len*clearance*.55)/3))};
+ u.troopDetour={destination:{...goal},waypoint};
+ return waypoint;
 }
 function preventTroopPenetration(u,oldX,oldY){
  const air=!!nativeTroops[u.type]?.air;
