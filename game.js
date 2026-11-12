@@ -113,10 +113,11 @@ function spriteFrame(im,frame,x,y,count=72){if(!im?.complete||!im.naturalWidth)r
 // readable at different zoom levels without invalidating factory/base caches.
 const BASE_PLAYER_NAMES=['Player','Opponent'];
 function drawBasePlayerName(u){
- // DW5 reference: a small, unboxed, left-aligned owner name sits above
- // the upper-left portion of the base, not centred far above the terrain.
+ // Owner label anchored beside the base's main buildings, as in DW5.
+ // Airbase runway occupies the left side; put its label next to the hangar.
  const label=BASE_PLAYER_NAMES[u.team]??'Player';
- const x=u.x-205,y=u.y-145;
+ const air=u.type==='airbase';
+ const x=u.x+(air?25:-315),y=u.y+(air?-280:-160);
  ctx.save();
  ctx.font='24px Arial, sans-serif';
  ctx.textAlign='left';
