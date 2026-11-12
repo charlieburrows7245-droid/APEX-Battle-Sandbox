@@ -619,10 +619,66 @@ window.apexImportDw5River=function(encoded){
  notice('Imported '+segments.length+' DW5 river segments');
  return segments.length;
 };
+
+// Procedural DW5-style river layout using the client decoder's 300-unit steps
+// and 5-degree turns. Server-side layout choices are not available.
+let riverSeed=Number(localStorage.getItem('apexRiverSeed')||'1415')>>>0;
+let generatedRiverSegments=[];
+function generateDw5StyleRivers(){
+ let state=riverSeed||1;
+ const rnd=()=>((state=(Math.imul(state,1664525)+1013904223)>>>0)/4294967296);
+ generatedRiverSegments=[];
+ const routes=[];
+ // A variable number of connected channels; branches share their parent's nodes.
+ const primaryCount=1+Math.floor(rnd()*3);
+ for(let n=0;n<primaryCount;n++){
+  const vertical=rnd()<.78;
+  const start=vertical?{x:(.14+.72*rnd())*WORLD_WIDTH,y:-240}:{x:-240,y:(.14+.72*rnd())*WORLD_HEIGHT};
+  let heading=vertical?180:90;
+  const route=[start],length=vertical?WORLD_HEIGHT:WORLD_WIDTH;
+  const steps=Math.ceil((length+800)/300);
+  let bias=0;
+  for(let k=0;k<steps;k++){
+   if(rnd()<.18)bias=Math.max(-2,Math.min(2,bias+(rnd()<.5?-1:1)));
+   const turn=(rnd()<.67?0:(rnd()<.5?-5:5))+bias*2.5;
+   heading+=turn;
+   const prev=route[route.length-1];
+   route.push({x:prev.x+300*Math.sin(heading*Math.PI/180),y:prev.y-300*Math.cos(heading*Math.PI/180)});
+  }
+  routes.push(route);
+ }
+ // Occasional tributaries; do not require exactly two rivers.
+ if(routes.length&&rnd()<.75){
+  const parent=routes[Math.floor(rnd()*routes.length)],idx=2+Math.floor(rnd()*Math.max(1,parent.length-4));
+  const origin=parent[idx],route=[{...origin}];let heading=rnd()<.5?60:300;
+  for(let k=0;k<5+Math.floor(rnd()*6);k++){
+   heading+=(rnd()<.5?-5:5);
+   const p=route[route.length-1];
+   route.push({x:p.x+300*Math.sin(heading*Math.PI/180),y:p.y-300*Math.cos(heading*Math.PI/180)});
+  }
+  routes.push(route);
+ }
+ for(const route of routes)for(let k=1;k<route.length;k++){
+  const a=route[k-1],b=route[k],angle=Math.atan2(b.y-a.y,b.x-a.x);
+  generatedRiverSegments.push({a,b,angle,width:16});
+ }
+}
+generateDw5StyleRivers();
+const riverGenerateButton=document.getElementById('terrain-generate');
+if(riverGenerateButton)riverGenerateButton.addEventListener('click',()=>{
+ riverSeed=(riverSeed+1)>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));
+ generatedRiverSegments=[];generateDw5StyleRivers();
+ notice('Generated DW5-style river seed '+riverSeed);
+});
 function drawGeneratedRivers(){
- if(!importedRiverSegments.length)return;
+ if(!importedRiverSegments.length&&!generatedRiverSegments.length)return;
  ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);
  ctx.beginPath();ctx.rect(0,0,WORLD_WIDTH,WORLD_HEIGHT);ctx.clip();
+ for(const segment of generatedRiverSegments){
+  ctx.strokeStyle='#656657';ctx.lineWidth=24;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(segment.a.x,segment.a.y);ctx.lineTo(segment.b.x,segment.b.y);ctx.stroke();
+  ctx.strokeStyle='#19323e';ctx.lineWidth=17;ctx.stroke();
+  ctx.strokeStyle='#43677a';ctx.lineWidth=11;ctx.stroke();
+ }
  for(const segment of importedRiverSegments){
   ctx.save();ctx.translate(segment.x,segment.y);ctx.rotate(segment.angle*Math.PI/180);
   ctx.fillStyle='#274d60';ctx.fillRect(-12,-145,24,290);
@@ -631,10 +687,7 @@ function drawGeneratedRivers(){
  }
  ctx.restore();
 }
-const terrainButton=document.getElementById('terrain-generate');
-if(terrainButton)terrainButton.addEventListener('click',()=>{
- notice('No DW5 river data imported. Load a real map layout before rendering rivers.');
-});
+
 let fpsFrames=0,fpsWindow=0,lastMini=0,groundPattern=null;
 function frame(now){fpsFrames++;if(now-fpsWindow>=500){$('fps').textContent='FPS '+Math.round(fpsFrames*1000/(now-fpsWindow));fpsFrames=0;fpsWindow=now;}let dt=Math.min(.05,(now-last)/1000||0);last=now;if(!paused)update(dt*speed);ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.fillStyle='#253021';ctx.fillRect(0,0,W,H);drawTerrainView();drawGeneratedRivers();ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);ctx.strokeStyle='#dce4b609';ctx.lineWidth=1;for(let x=Math.max(0,Math.floor((cam.x-W/(2*zoom))/900)*900);x<=Math.min(WORLD_WIDTH,cam.x+W/(2*zoom));x+=900){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,WORLD_HEIGHT);ctx.stroke()}for(let y=Math.max(0,Math.floor((cam.y-H/(2*zoom))/900)*900);y<=Math.min(WORLD_HEIGHT,cam.y+H/(2*zoom));y+=900){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(WORLD_WIDTH,y);ctx.stroke()}const visible=u=>Math.abs(u.x-cam.x)<W/(2*zoom)+(TYPES[u.type].speed?80:900)&&Math.abs(u.y-cam.y)<H/(2*zoom)+(TYPES[u.type].speed?80:500);for(const u of units)if(!TYPES[u.type].speed&&visible(u))drawUnit(u);// Paint ground vehicles first, helicopters above them, then fixed-wing
 // aircraft above helicopters. Airborne units do not participate in collision.
