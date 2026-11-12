@@ -650,8 +650,10 @@ const travelHeading=actuallyTravelling?Math.atan2(travelDy,travelDx):u.formation
 const bodyGoal=air&&attacking?u.aimAngle:(Number.isFinite(travelHeading)?travelHeading:u.angle);
 state.body=turnToward(state.body,bodyGoal,dt*(moving?7:3));
 state.idleAim+=Math.atan2(Math.sin(state.body-oldBody),Math.cos(state.body-oldBody));state.idleClock+=dt;while(state.idleClock>=.05){state.idleClock-=.05;if(!air&&random()<.02)state.idleAim=state.body+(random()-.5)*Math.PI*5/18;}
-const goal=attacking?u.aimAngle:air?state.body:state.idleAim;
-state.turret=turnToward(state.turret,goal,dt*(attacking?3:1.5));state.moving=moving;return state;}
+// TanSAM's large launcher is its most visible directional layer. Keep it
+// aligned with the moving hull unless it is actively tracking a target.
+const goal=attacking?u.aimAngle:(u.type==='aa'&&moving?state.body:air?state.body:state.idleAim);
+state.turret=turnToward(state.turret,goal,dt*(attacking?3:u.type==='aa'&&moving?7:1.5));state.moving=moving;return state;}
 function troopAnimation(u){let state=troopAnimationStates.get(u);if(!state){state={body:u.angle,turret:u.angle,idleAim:u.angle,idleClock:0,time:u.id*.137,updatedAt:last,moving:!!u.target};troopAnimationStates.set(u,state);}const dt=paused?0:Math.min(.1,Math.max(0,(last-state.updatedAt)/1000))*speed;state.updatedAt=last;return advanceTroopAnimation(state,u,dt);}
 function headingFrame(angle){return ((17+angle*36/Math.PI)%72+72)%72;}
 function drawTroopHeading(im,angle,x,y){if(im?.complete&&im.naturalWidth)drawSmoothTurret(im,headingFrame(angle),x,y);}
