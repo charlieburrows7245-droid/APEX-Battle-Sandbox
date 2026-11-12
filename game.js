@@ -18,7 +18,7 @@ let units=[],selected=new Set(),team=0,tool='select',paused=false,speed=1,zoom=1
 const colors=['#65ff38','#ff3535','#00cfff','#c2bd9f'];
 function notice(t){$('notice').textContent=t}
 function setTool(t){tool=t;document.querySelectorAll('[data-type]').forEach(b=>b.classList.toggle('active',b.dataset.type===t));$('select').classList.toggle('active',t==='select');canvas.style.cursor=t==='select'?'default':'crosshair'}
-for(const [id,t] of Object.entries(TYPES)){if(t.speed&&!['heli','raptor'].includes(id))continue;let b=document.createElement('button');b.dataset.type=id;b.innerHTML=`<span>${t.icon}</span>${id==='heli'?'Apache helicopter':t.name}`;b.onclick=()=>{setTool(id);notice('Click the battlefield to place '+t.name)};$('catalog').append(b)}
+for(const [id,t] of Object.entries(TYPES)){if(t.speed&&!['heli','raptor','unit5','unit7'].includes(id))continue;let b=document.createElement('button');b.dataset.type=id;b.innerHTML=`<span>${t.icon}</span>${id==='heli'?'Apache helicopter':id==='unit5'?'Howitzer · base attacker':id==='unit7'?'APC · capture bases':t.name}`;b.onclick=()=>{setTool(id);notice('Click the battlefield to place '+t.name)};$('catalog').append(b)}
 function add(type,x,y,side){let t=TYPES[type];units.push({id:++uid,type,x,y,team:side,hp:t.hp,factoryLevel:1,militaryCentralLevel:0,wallLevel:2,defenceGuns:2,angle:side?Math.PI:0,cool:Math.random(),target:null})}
 
 const GROUP_SIZE=49,PLAYER_TEAM=0;
