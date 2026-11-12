@@ -566,7 +566,31 @@ function recoverTrappedGroundTroops(dt){
   }else u.trappedFor=.9;
  }
 }
-function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=!!nativeTroops[type]?.air;const x=base.x+(base.type==='helibase'?4:base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='helibase'?92:base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced&&!produced.joinOrder){const offset=formationOffset(type,produced.groupSlot),exit=base.type==='helibase'?{x:produced.rallyX+offset.x,y:produced.rallyY+120+offset.y}:air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}updateDivisionMovement(dt);for(const u of units){const t=TYPES[u.type];if(u.formationOrder&&u.target){const error=Math.hypot(u.target.x-u.x,3*(u.target.y-u.y));const boost=1+Math.min(.55,Math.max(0,(error-troopSpacing(u.type)*.5)/Math.max(1,troopSpacing(u.type)*5)));moveTroopWithDrift(u,{...t,speed:t.speed*boost},dt);}else moveTroopWithDrift(u,t,dt);}recoverTrappedGroundTroops(dt);updateDivisionCombat(dt);updatePendingGroupJoins();}
+// DW5 unit 7 APC: captures an undefended enemy base by driving up to it.
+// A destroyed defensive battery is not itself a capture. Base structures remain.
+function updateApcCaptures(){
+ const bases=units.filter(b=>!TYPES[b.type].speed);
+ for(const apc of units){
+  if(apc.type!=='unit7'||apc.hp<=0)continue;
+  for(const base of bases){
+   if(base.team===apc.team||friendlyTeams(base.team,apc.team))continue;
+   if(base.hp>0)continue; // DW5 catalog: APC can conquer a base if it has no defence
+   const rx=base.type==='airbase'?590:570,ry=base.type==='airbase'?205:190;
+   const distance=Math.hypot((apc.x-base.x)/rx,(apc.y-base.y)/ry);
+   if(distance>1.18)continue;
+   base.team=apc.team;
+   base.playerName=apc.team===PLAYER_TEAM?playerName:(BASE_PLAYER_NAMES[apc.team]||'Opponent');
+   base.baseTargetId=null;base.buildQueue=[];base.buildTimer=0;
+   resetBaseDefenceHealth(base);
+   selected.delete(apc.id);
+   apc.hp=0; // APC is consumed when taking ownership
+   notice('APC captured '+(base.mapBaseId?'base #'+base.mapBaseId:TYPES[base.type].name)+' for '+base.playerName);
+   break;
+  }
+ }
+ units=units.filter(u=>u.hp>0||!TYPES[u.type].speed);
+}
+function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=!!nativeTroops[type]?.air;const x=base.x+(base.type==='helibase'?4:base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='helibase'?92:base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced&&!produced.joinOrder){const offset=formationOffset(type,produced.groupSlot),exit=base.type==='helibase'?{x:produced.rallyX+offset.x,y:produced.rallyY+120+offset.y}:air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}updateDivisionMovement(dt);for(const u of units){const t=TYPES[u.type];if(u.formationOrder&&u.target){const error=Math.hypot(u.target.x-u.x,3*(u.target.y-u.y));const boost=1+Math.min(.55,Math.max(0,(error-troopSpacing(u.type)*.5)/Math.max(1,troopSpacing(u.type)*5)));moveTroopWithDrift(u,{...t,speed:t.speed*boost},dt);}else moveTroopWithDrift(u,t,dt);}recoverTrappedGroundTroops(dt);updateDivisionCombat(dt);updateApcCaptures();updatePendingGroupJoins();}
 // DW5 Xo(): seven position-hashed ground tiles, 850px columns,
 // 280px rows, odd rows offset by -400px; even rows are painted first.
 function groundVariant(x,y){let g=314159265+x*y;for(let i=0;i<2;i++){g^=g<<13;g^=g<<17;g^=g<<5;}return Math.abs(g)%7;}
@@ -1394,25 +1418,11 @@ function updateDivisionCombat(dt){
    victim.hp=Math.max(0,victim.hp-scaled);
    if(victim.hp===0){attackerCasualtyTimes.set(key,combatClock);queueCombatSound('explo',victim.x,victim.y);}
   }else{
-   if(!TYPES[hit.target.type].speed){
-    const attackerGroup=groups.find(g=>g.key===hit.attacker);
-    const base=hit.target.members[0];
-    if(attackerGroup&&base)base.lastAttackerTeam=attackerGroup.team;
-   }
    applyAttackerVolley(hit.target,hit.amount,hit.attacker);
   }
  }
- for(const u of units)if(u.hp<=0&&!TYPES[u.type].speed&&Number.isInteger(u.lastAttackerTeam)&&u.lastAttackerTeam!==u.team){
-  const oldTeam=u.team;
-  u.team=u.lastAttackerTeam;
-  u.playerName=u.team===PLAYER_TEAM?playerName:(BASE_PLAYER_NAMES[u.team]||'Opponent');
-  delete u.lastAttackerTeam;u.baseTargetId=null;u.buildQueue=[];u.buildTimer=0;
-  resetBaseDefenceHealth(u);
-  selected.delete(u.id);
-  notice((u.team===PLAYER_TEAM?'You captured ':'Base captured by '+u.playerName+': ')+(u.mapBaseId?'#'+u.mapBaseId:TYPES[u.type].name));
- }
- for(const u of units)if(u.hp<=0){selected.delete(u.id);registerTroopDeath(u);}
- units=units.filter(u=>u.hp>0);
+ for(const u of units)if(u.hp<=0&&TYPES[u.type].speed){selected.delete(u.id);registerTroopDeath(u);}
+ units=units.filter(u=>u.hp>0||!TYPES[u.type].speed);
  for(const key of combatCooldowns.keys())if(!liveKeys.has(key))combatCooldowns.delete(key);
  for(const key of attackerCasualtyTimes.keys()){const [attacker,defender]=key.split('>');if(!liveKeys.has(attacker)||!liveKeys.has(defender))attackerCasualtyTimes.delete(key);}
  flushCombatSounds();
