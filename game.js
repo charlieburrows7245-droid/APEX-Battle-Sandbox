@@ -37,6 +37,8 @@ function shortTroopLabel(type){
  if(type==='tank'||/type\s*99/i.test(name))return '99c';
  if(/howitzer|haub/i.test(name))return 'haub';
  if(/pantsir|pantsyr|panzir|pansir/i.test(name))return 'psir';
+ if(/^(?:LT|light\s*tank)$/i.test(name)||type==='lt')return 'LTank';
+ if(/jammer/i.test(name)||type==='jammer')return 'JAM';
  const known={
   aa:'TanSAM',heli:'Apache',jet:'J-10',raptor:'F-22C',
  };
