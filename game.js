@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id),canvas=$('game'),mini=$('mini'),mc=mini.
 let ctx=canvas.getContext('2d',{alpha:false});
 const MAP_LIMIT=1200,MAP_STEP_X=90,MAP_STEP_Y=90,WORLD_WIDTH=MAP_LIMIT*MAP_STEP_X,WORLD_HEIGHT=MAP_LIMIT*MAP_STEP_Y;
 function mapCoordinates(p){return{x:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.x/MAP_STEP_X))),y:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.y/MAP_STEP_Y)))}}
-const TYPES={tank:{name:'Type 99',icon:'▰',speed:150,dw5Speed:2,range:165,damage:19,hp:160},aa:{name:'TanSAM',icon:'▤',speed:75,dw5Speed:1,range:240,damage:15,hp:110},heli:{name:'Apache',icon:'✣',speed:112,range:180,damage:16,hp:100},jet:{name:'J-10',icon:'✈',speed:170,range:210,damage:22,hp:100},base:{name:'Military base',icon:'▦',speed:0,range:210,damage:12,hp:1000},airbase:{name:'Airbase',icon:'⊞',speed:0,range:0,damage:0,hp:800}};
+const TYPES={tank:{name:'Type 99',icon:'▰',speed:150,dw5Speed:2,range:165,damage:19,hp:160},aa:{name:'TanSAM',icon:'▤',speed:75,dw5Speed:1,range:240,damage:15,hp:110},heli:{name:'Apache',icon:'✣',speed:112,range:180,damage:16,hp:100},jet:{name:'J-10',icon:'✈',speed:170,range:210,damage:22,hp:100},base:{name:'Military base',icon:'▦',speed:0,range:210,damage:12,hp:1000},airbase:{name:'Airbase',icon:'⊞',speed:0,range:210,damage:12,hp:800}};
 let units=[],selected=new Set(),team=0,tool='select',paused=false,speed=1,zoom=.65,cam={x:1200,y:800},W=0,H=0,drag=null,mouse={x:0,y:0},shots=[],uid=0,last=0,statsTimer=0;
 const colors=['#65ff38','#ff3535','#00cfff'];
 function notice(t){$('notice').textContent=t}
@@ -22,7 +22,7 @@ function troopRelationColor(side){return side===PLAYER_TEAM?'#65ff38':friendlyTe
 function troopGroups(list=units){const groups=new Map();for(const u of list){if(!TYPES[u.type]?.speed)continue;const key=u.groupId??'single-'+u.id;let g=groups.get(key);if(!g){g=[];groups.set(key,g);}g.push(u);}return [...groups.values()];}
 function repairTroopGroups(){nextGroupId=units.reduce((max,u)=>Math.max(max,Number(u.groupId)||0),nextGroupId);const pending=new Map(),remap=new Map();for(const u of units){if(!TYPES[u.type]?.speed)continue;const key=(u.groupId??'legacy')+':'+u.team+':'+u.type;let batch=pending.get(key);if(!batch||batch.count>=49){batch={id:++nextGroupId,count:0,used:new Set()};pending.set(key,batch);if(!remap.has(key))remap.set(key,batch.id);}let slot=u.groupSlot;if(!Number.isInteger(slot)||slot<0||slot>=49||batch.used.has(slot)){slot=0;while(batch.used.has(slot))slot++;}batch.used.add(slot);u.groupId=batch.id;u.groupSlot=slot;batch.count++;}for(const u of units)if(u.joinOrder){const id=remap.get(u.joinOrder.groupId+':'+u.team+':'+u.type);if(id)u.joinOrder.groupId=id;else{delete u.joinOrder;u.target=null;}}}
 function expandGroupSelection(){const ids=new Set(units.filter(u=>selected.has(u.id)&&TYPES[u.type].speed).map(u=>u.groupId));for(const u of units)if(TYPES[u.type].speed&&ids.has(u.groupId))selected.add(u.id);}
-function drawTroopGroupLabels(visible){ctx.save();ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.font='bold 12px Tahoma,Arial,sans-serif';for(const group of troopGroups()){if(!group.some(visible))continue;const x=group.reduce((sum,u)=>sum+u.x,0)/group.length,cy=group.reduce((sum,u)=>sum+u.y,0)/group.length,y=Math.min(...group.map(u=>u.y))-45;if(group.some(u=>selected.has(u.id))){const radius=Math.max(...group.map(u=>Math.abs(u.x-x)+3*Math.abs(u.y-cy)))+36;ctx.strokeStyle='#dde89b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-radius,cy);ctx.lineTo(x,cy-radius/3);ctx.lineTo(x+radius,cy);ctx.lineTo(x,cy+radius/3);ctx.closePath();ctx.stroke();}ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.9)';const first=group[0],owner=(first.playerName??BASE_PLAYER_NAMES[first.team]??'Player').toUpperCase(),label=group.length+' '+TYPES[first.type].name;ctx.strokeText(owner,x,y-12);ctx.strokeText(label,x,y);ctx.fillStyle=troopRelationColor(first.team);ctx.fillText(owner,x,y-12);ctx.fillText(label,x,y);}ctx.restore();}
+function drawTroopGroupLabels(visible){ctx.save();ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.font='bold 12px Tahoma,Arial,sans-serif';for(const group of troopGroups()){if(!group.some(visible))continue;const x=group.reduce((sum,u)=>sum+u.x,0)/group.length,cy=group.reduce((sum,u)=>sum+u.y,0)/group.length,y=Math.min(...group.map(u=>u.y))-45;if(group.some(u=>selected.has(u.id))){const radius=Math.max(...group.map(u=>Math.abs(u.x-x)+3*Math.abs(u.y-cy)))+36;ctx.strokeStyle='#dde89b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-radius,cy);ctx.lineTo(x,cy-radius/3);ctx.lineTo(x+radius,cy);ctx.lineTo(x,cy+radius/3);ctx.closePath();ctx.stroke();}ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.9)';const first=group[0],owner=(first.playerName??BASE_PLAYER_NAMES[first.team]??'Player').toUpperCase(),label=group.length+' '+TYPES[first.type].name;ctx.strokeText(owner,x,y-12);ctx.strokeText(label,x,y);ctx.fillStyle=troopRelationColor(first.team);ctx.fillText(owner,x,y-12);ctx.fillText(label,x,y);drawGroupHealth(group,x,y);}ctx.restore();}
 
 function spawn(type,x,y,side,count,originBase=null){if(!TYPES[type].speed){for(let i=0;i<count;i++)add(type,x,y,side);return;}let remaining=Math.max(0,Math.trunc(count));while(remaining){let members=originBase===null?null:troopGroups().find(g=>g.length+reservedJoinSlots(g[0].groupId).length<49&&!g[0].joinOrder&&g[0].type===type&&g[0].team===side&&g[0].originBase===originBase);const batch=originBase===null?Math.floor((count-remaining)/49):troopGroups().filter(g=>g[0].type===type&&g[0].team===side&&g[0].originBase===originBase).length,anchorX=x+(members?0:batch*troopSpacing(type)*14),id=members?.[0].groupId??++nextGroupId,amount=Math.min(remaining,49-(members?.length??0)-(members?reservedJoinSlots(members[0].groupId).length:0)),used=new Set([...(members??[]).map(u=>u.groupSlot),...(members?reservedJoinSlots(members[0].groupId):[])]);for(let i=0;i<amount;i++){let slot=0;while(used.has(slot))slot++;used.add(slot);const offset=formationOffset(type,slot),single=count===1;add(type,Math.max(0,Math.min(WORLD_WIDTH,(single?x:anchorX+offset.x))),Math.max(0,Math.min(WORLD_HEIGHT,y+(single?0:offset.y))),side);const u=units[units.length-1];Object.assign(u,{groupId:id,groupSlot:slot,originBase,rallyX:members?.[0].rallyX??anchorX,rallyY:members?.[0].rallyY??y});}remaining-=amount;}}
 function demo(){units=[];selected.clear();shots=[];add('airbase',1110,620,0);add('base',2050,1300,1);spawn('heli',850,1030,0,49);spawn('tank',650,1270,0,14);spawn('aa',1430,1110,0,7);spawn('heli',2110,700,1,7);cam={x:1110,y:690};zoom=1.1;notice('Raised airbase demo. Select troops and left-click ground to move. Right-drag to pan.');}
@@ -58,8 +58,8 @@ function buildingSprite(name,level,x,y,w,h,frames=10){let im=dwArt[name];if(!im?
 // Native DW5 Wj/AC arrays. AC is projected by KE=3; gun order is reversed
 // for depth sorting, then the wall foreground is drawn over gun bases.
 const DW5_DEFENCE={"x":[[50,-50,90,-64,130,-77,170,-90,210,-102,250,-114,290,-125,330,-136,70,-30,110,-40,150,-49,190,-58,230,-66,270,-74,310,-81,90,-10,130,-16,170,-22,210,-27,250,-32,290,-36,110,10,150,7,190,4,230,2],[-50,50,-90,64,-130,77,-170,90,-210,102,-250,114,-290,125,-330,136,-70,30,-110,40,-150,49,-190,58,-230,66,-270,74,-310,81,-90,10,-130,16,-170,22,-210,27,-250,32,-290,36,-110,-10,-150,-7,-190,-4,-230,-2],[50,-50,90,-90,130,-130,170,-170,210,-210,250,-250,290,-290,330,-330,70,-70,110,-110,150,-150,190,-190,230,-230,270,-270,310,-310,90,-90,130,-130,170,-170,210,-210,250,-250,290,-290,110,-110,150,-150,190,-190,230,-230],[-50,50,-90,64,-130,77,-170,90,-210,102,-250,114,-290,125,-330,136,-70,30,-110,40,-150,49,-190,58,-230,66,-270,74,-310,81,-90,10,-130,16,-170,22,-210,27,-250,32,-290,36,-110,-10,-150,-7,-190,-4,-230,-2]],"y":[[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230],[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230],[120,120,115,115,110,110,105,105,100,100,95,95,90,90,85,85,90,90,85,85,80,80,75,75,70,70,65,65,60,60,60,60,55,55,50,50,45,45,40,40,35,35,30,30,25,25,20,20,15,15],[50,-50,64,-90,77,-130,90,-170,102,-210,114,-250,125,-290,136,-330,30,-70,40,-110,49,-150,58,-190,66,-230,74,-270,81,-310,10,-90,16,-130,22,-170,27,-210,32,-250,36,-290,-10,-110,-7,-150,-4,-190,-2,-230]]};
-function baseGunCount(u){return u.maxUpgraded?50:Math.max(2,Math.min(50,Math.trunc(u.defenceGuns??2)));}
-function upgradeBaseFlak(u){const level=baseGunCount(u);if(level>=50)return false;u.defenceGuns=level+1;return true;}
+function baseGunCount(u){return Array.isArray(u.turretHealth)?u.turretHealth.filter(h=>h>0).length:baseGunCapacity(u);}
+function upgradeBaseFlak(u){syncBaseDefenceHealth(u);const missing=u.turretHealth.findIndex(h=>h<=0);if(missing>=0){u.turretHealth[missing]=turretMaxHealth(u);syncBaseDefenceHealth(u);return true;}const level=baseGunCapacity(u);if(level>=50)return false;u.defenceGuns=level+1;syncBaseDefenceHealth(u);return true;}
 function drawStarterDefences(u,air){ctx.save();const orientation=air?3:1,ax=air?510:450,ay=air?150:130,maxed=(u.wallLevel??1)>1;const gun=dwArt['flak.png'];const count=baseGunCount(u);if(gun.complete&&gun.naturalWidth){const fw=gun.naturalWidth/72;for(let j=count-1;j>=0;j--){const x=ax+DW5_DEFENCE.x[orientation][j],y=ay+DW5_DEFENCE.y[orientation][j]/3;const frame=idleTurretFrame(u,j,last);drawSmoothTurret(gun,frame,x,y)}}const front=dwArt[maxed?'mauer2b.png':'mauer1a.png'],side=dwArt[maxed?'mauer2d.png':'mauer1d.png'];if((u.wallLevel??1)>0){if(front.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+(maxed?10:20));if(side.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-(maxed?180:170))}ctx.restore()}
 // Native factory stages 0..9 use one sprite; stages 10..19 add a second
 // sprite at the offsets used by DW5's base renderer.
@@ -106,9 +106,9 @@ function drawFactoryActivity(u){
 }
 function formatFactoryCountdown(seconds){const h=Math.floor(seconds/3600),m=Math.floor(seconds%3600/60),sec=Math.floor(seconds%60);return(h?h+':':'')+(h?String(m).padStart(2,'0'):m)+':'+String(sec).padStart(2,'0');}
 function drawRotatingHeads(u){const up=u.specialUpgrades??{},air=u.type==='airbase',ex=air?422:348,ey=air?99:76;ctx.save();ctx.translate(u.x,u.y);if(u.maxUpgraded||up.radar){const im=dwArt['radarturm2.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/50)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex-75-fw/2,ey-75-im.naturalHeight/2,fw,im.naturalHeight)}}if(u.maxUpgraded||up.detector){const im=dwArt['detec2.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/50)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex+40-fw/2,ey-90-im.naturalHeight/2,fw,im.naturalHeight)}}if(u.maxUpgraded||up.range){const im=dwArt['rakerw.png'];if(im?.complete&&im.naturalWidth){const fw=im.naturalWidth/72,f=Math.floor(last/100)%72;ctx.drawImage(im,fw*f,0,fw,im.naturalHeight,ex+8-fw/2,ey-18-im.naturalHeight/2,fw,im.naturalHeight)}}ctx.restore()}
-function actualBase(u){
+function actualBase(u){syncBaseDefenceHealth(u);
  const up=u.specialUpgrades??{};
- const key=JSON.stringify([artRevision,u.type,u.factoryLevel,u.maxUpgraded,u.militaryCentralLevel,u.wallLevel,u.defenceGuns,u.factoryLevels,up]);
+ const key=JSON.stringify([artRevision,u.type,u.factoryLevel,u.maxUpgraded,u.militaryCentralLevel,u.wallLevel,u.defenceGuns,baseGunCount(u),u.factoryLevels,up]);
  let cached=baseRenderCache.get(u);
  if(!cached||cached.key!==key){
   const surface=cached?.surface??document.createElement('canvas');
@@ -118,7 +118,7 @@ function actualBase(u){
   cached={surface,key};baseRenderCache.set(u,cached);
  }
  ctx.drawImage(cached.surface,u.x-900,u.y-500);ctx.save();ctx.translate(u.x,u.y);drawStarterDefences(u,u.type==='airbase');ctx.restore();drawRotatingHeads(u);drawFactoryActivity(u);
- if(selected.has(u.id)){ctx.save();ctx.translate(u.x,u.y);ctx.strokeStyle='#d8f38e';ctx.lineWidth=2/zoom;ctx.beginPath();ctx.ellipse(0,0,705,225,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#162013';ctx.fillRect(-50,-277,100,4);ctx.fillStyle=colors[u.team];ctx.fillRect(-50,-277,100*u.hp/TYPES[u.type].hp,4);ctx.restore();}
+ if(selected.has(u.id)){ctx.save();ctx.translate(u.x,u.y);ctx.strokeStyle='#d8f38e';ctx.lineWidth=2/zoom;ctx.beginPath();ctx.ellipse(0,0,705,225,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#162013';ctx.fillRect(-50,-277,100,4);ctx.fillStyle=colors[u.team];ctx.fillRect(-50,-277,100*u.hp/baseMaxHealth(u),4);ctx.restore();}
 }
 const nativeTroops={tank:{id:27,raise:-9,pivot:2},aa:{id:43,raise:-13,pivot:12},heli:{id:13,air:true},jet:{id:58,air:true}};
 const troopArt={};for(const def of Object.values(nativeTroops)){for(const layer of ['a','b']){const im=new Image();im.src='assets/gi/panzer'+def.id+layer+'.png';troopArt[def.id+layer]=im}}const apacheRotor=new Image();apacheRotor.src='assets/i/rotor4er.png';
@@ -199,7 +199,7 @@ drawTroopHeading(troopArt[def.id+'a'],animation.body,0,0);
 if(!def.air)drawTroopHeading(troopArt[def.id+'b'],animation.turret,-Math.cos(animation.body)*def.pivot,def.raise-Math.sin(animation.body)*def.pivot/3);
 if(u.type==='heli')spriteFrame(apacheRotor,Math.floor(animation.time*1000/35)%18,0,-7,18);
 ctx.restore();
-if(selected.has(u.id)||u.hp<TYPES[u.type].hp){ctx.fillStyle='#172214';ctx.fillRect(-20,-38,40,3);ctx.fillStyle=colors[u.team];ctx.fillRect(-20,-38,40*u.hp/TYPES[u.type].hp,3)}ctx.restore()}
+ctx.restore()}
 function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=type==='heli'||type==='jet';const x=base.x+(base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced){const offset=formationOffset(type,produced.groupSlot),exit=air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}for(const u of units)moveTroopWithDrift(u,TYPES[u.type],dt);updateDivisionCombat(dt);updatePendingGroupJoins();}
 // DW5 Xo(): seven position-hashed ground tiles, 850px columns,
 // 280px rows, odd rows offset by -400px; even rows are painted first.
@@ -238,10 +238,10 @@ function frame(now){fpsFrames++;if(now-fpsWindow>=500){$('fps').textContent='FPS
 
 $('editor-toggle').onclick=()=>{const collapsed=document.body.classList.toggle('editor-hidden');$('editor-toggle').textContent=collapsed?'☰ Sandbox editor':'✕ Close editor';$('editor-toggle').setAttribute('aria-expanded',String(!collapsed))};
 
-$('upgrade-base').onclick=()=>{let bases=units.filter(u=>!TYPES[u.type].speed&&selected.has(u.id));if(!bases.length)bases=units.filter(u=>u.type==='airbase'&&u.team===team).slice(0,1);if(!bases.length)return notice('Place or select a base first.');bases.forEach(u=>{u.factoryLevel=20;u.factoryLevels={};u.maxUpgraded=true;u.militaryCentralLevel=0;u.wallLevel=2;u.defenceGuns=50});notice('Max upgrade preview: factories, command buildings and defensive wall.');};
-$('starter-base').onclick=()=>{let bases=units.filter(u=>!TYPES[u.type].speed&&selected.has(u.id));if(!bases.length)bases=units.filter(u=>u.type==='airbase'&&u.team===team).slice(0,1);bases.forEach(u=>{u.factoryLevel=1;u.factoryLevels={};delete u.production;u.specialUpgrades={};u.maxUpgraded=false;u.militaryCentralLevel=0;u.wallLevel=1;u.defenceGuns=2});notice('Starting base restored: level 1 factories, sandbags and two guns.');};
+$('upgrade-base').onclick=()=>{let bases=units.filter(u=>!TYPES[u.type].speed&&selected.has(u.id));if(!bases.length)bases=units.filter(u=>u.type==='airbase'&&u.team===team).slice(0,1);if(!bases.length)return notice('Place or select a base first.');bases.forEach(u=>{u.factoryLevel=20;u.factoryLevels={};u.maxUpgraded=true;u.militaryCentralLevel=0;u.wallLevel=2;u.defenceGuns=50;syncBaseDefenceHealth(u)});notice('Max upgrade preview: factories, command buildings and defensive wall.');};
+$('starter-base').onclick=()=>{let bases=units.filter(u=>!TYPES[u.type].speed&&selected.has(u.id));if(!bases.length)bases=units.filter(u=>u.type==='airbase'&&u.team===team).slice(0,1);bases.forEach(u=>{u.factoryLevel=1;u.factoryLevels={};delete u.production;u.specialUpgrades={};u.maxUpgraded=false;u.militaryCentralLevel=0;u.wallLevel=1;u.defenceGuns=2;resetBaseDefenceHealth(u)});notice('Starting base restored: level 1 factories, sandbags and two guns.');};
 
-for(const name of ['command','group','radar','jammer','detector','range'])$('upgrade-'+name).onclick=()=>{let bases=units.filter(u=>!TYPES[u.type].speed&&selected.has(u.id));if(!bases.length)bases=units.filter(u=>!TYPES[u.type].speed&&u.team===team).slice(0,1);if(!bases.length)return notice('Select or place a base first.');bases.forEach(u=>{u.specialUpgrades??={};u.specialUpgrades[name]=name==='group'?3:name==='command'?5:true});notice(({command:'Maximum base command',group:'Group-limit extension',radar:'Radar tower',jammer:'Jammer tower',detector:'Detector tower',range:'Long range · base weapon range ×3'})[name]+' installed.');};
+for(const name of ['command','group','radar','jammer','detector','range'])$('upgrade-'+name).onclick=()=>{let bases=units.filter(u=>!TYPES[u.type].speed&&selected.has(u.id));if(!bases.length)bases=units.filter(u=>!TYPES[u.type].speed&&u.team===team).slice(0,1);if(!bases.length)return notice('Select or place a base first.');bases.forEach(u=>{u.specialUpgrades??={};u.specialUpgrades[name]=name==='group'?3:name==='command'?5:true});notice(({command:'Maximum base command',group:'Group-limit extension',radar:'Radar tower',jammer:'Jammer tower',detector:'Detector tower',range:'Long range · base weapon range ×2'})[name]+' installed.');};
 
 // Base-attached hover controls. These mutate sandbox state only.
 const BASE_UPGRADES={military:{title:'Military central',detail:'Build and upgrade the military central.',max:10},radar:{title:'Radar station',detail:'More sight range (Fog of War).',max:1},jammer:{title:'Jammer tower',detail:'Jamming around this base.',max:1},detector:{title:'Detector tower',detail:'Detects stealthed units.',max:1}};
@@ -307,7 +307,7 @@ function refreshBaseUnitMenu(u){
   const level=action.key==='flak'?baseGunCount(u):action.key==='wall'?(u.wallLevel??1):action.key==='range'?Number(Boolean(u.maxUpgraded||u.specialUpgrades?.range)):(u.buildQueue?.length??0),maxed=action.max!==undefined&&level>=action.max,b=document.createElement('button');b.className='base-unit-upgrade';b.setAttribute('aria-label',action.key==='flak'?'Flak upgrade to level '+Math.min(50,level+1):action.name);b.setAttribute('aria-disabled',String(maxed));
   const im=document.createElement('img');im.src='assets/menu/'+action.image+'.png';im.alt='';if(action.animated){im.dataset.still=im.getAttribute('src');im.dataset.animation='assets/menu/'+action.image+'.webp';}b.append(im);if(maxed)b.classList.add('maxed');
   if(action.key==='queue'){const ns='http://www.w3.org/2000/svg',count=document.createElementNS(ns,'svg'),label=document.createElementNS(ns,'text');count.classList.add('queue-count');count.setAttribute('viewBox','0 0 60 40');count.setAttribute('aria-hidden','true');label.setAttribute('x','30');label.setAttribute('y','28');label.setAttribute('text-anchor','middle');label.setAttribute('font-family','Tahoma, sans-serif');label.setAttribute('font-size','21.333333');label.setAttribute('fill','white');label.textContent=String(level);count.append(label);b.append(count);} 
-  b.onpointerenter=()=>{stopBaseUnitAnimations();if(im.dataset.animation)im.src=im.dataset.animation;describeBaseUnit({name:action.key==='flak'&&!maxed?'Flak upgrade to level '+(level+1):action.name,description:action.key==='queue'?'Troop production queue':maxed?'Maximum level reached':action.key==='flak'?'Adds one defensive gun':action.key==='range'?'3× base weapon range':'Upgrade the defensive wall',detail:action.key==='queue'?level+' units queued · 3 seconds each':action.key==='flak'?level+' defensive guns':action.key==='wall'?'Wall level '+level:''});};
+  b.onpointerenter=()=>{stopBaseUnitAnimations();if(im.dataset.animation)im.src=im.dataset.animation;describeBaseUnit({name:action.key==='flak'&&!maxed?'Flak upgrade to level '+(level+1):action.name,description:action.key==='queue'?'Troop production queue':maxed?'Maximum level reached':action.key==='flak'?'Adds one defensive gun':action.key==='range'?'2× base weapon range':'Wall: 10× turret health',detail:action.key==='queue'?level+' units queued · 3 seconds each':action.key==='flak'?level+' defensive guns':action.key==='wall'?'Wall level '+level:''});};
   b.onpointerleave=()=>{if(im.dataset.still)im.src=im.dataset.still;};
   b.onclick=()=>{if(action.key==='queue'){notice(level?level+' units queued; each takes 3 seconds.':'Queue empty.');return;}if(maxed)return;if(action.key==='flak')upgradeBaseFlak(u);else if(action.key==='wall')u.wallLevel=level+1;else{u.specialUpgrades??={};u.specialUpgrades.range=true;}refreshBaseUnitMenu(u);placeBaseUnitMenu(u);};grid.append(b);
  }
@@ -403,8 +403,8 @@ function drawTroopHeading(im,angle,x,y){if(im?.complete&&im.naturalWidth)drawSmo
 const orderMarkers=[];
 function addOrderMarker(x,y,kind){orderMarkers.push({x,y,kind,started:last});if(orderMarkers.length>24)orderMarkers.shift();}
 function reservedJoinSlots(groupId){return units.filter(u=>u.joinOrder?.groupId===groupId).map(u=>u.joinOrder.slot);}
-function transferTroopToClickedGroup(p){const hit=units.slice().reverse().find(u=>TYPES[u.type].speed&&Math.hypot(u.x-p.x,u.y-p.y)<28);if(!hit||hit.joinOrder)return false;const destination=units.filter(u=>TYPES[u.type].speed&&u.groupId===hit.groupId),source=units.find(u=>selected.has(u.id)&&!u.joinOrder&&u.type===hit.type&&u.team===hit.team&&u.team===PLAYER_TEAM&&u.groupId!==hit.groupId);if(!source)return false;const reserved=reservedJoinSlots(hit.groupId);if(destination.length+reserved.length>=GROUP_SIZE){notice('That group has 49 troops or reserved arrival slots.');return false;}const used=new Set([...destination.map(u=>u.groupSlot),...reserved]);let slot=0;while(used.has(slot))slot++;selected.delete(source.id);source.groupId=++nextGroupId;source.groupSlot=0;source.originBase=null;source.joinOrder={groupId:hit.groupId,slot};updatePendingGroupJoins();addOrderMarker(hit.x,hit.y,'transfer');notice('One '+TYPES[source.type].name+' is moving to the other group.');return true;}
-function updatePendingGroupJoins(){for(const u of units){if(!u.joinOrder)continue;const order=u.joinOrder,members=units.filter(v=>v.groupId===order.groupId&&v.type===u.type&&v.team===u.team&&v.hp>0);if(!members.length||members.length>=GROUP_SIZE||members.some(v=>v.groupSlot===order.slot)){delete u.joinOrder;u.target=null;continue;}const anchor=members.reduce((p,v)=>{const o=formationOffset(v.type,v.groupSlot);p.x+=v.x-o.x;p.y+=v.y-o.y;return p;},{x:0,y:0});anchor.x/=members.length;anchor.y/=members.length;const offset=formationOffset(u.type,order.slot),target={x:Math.max(0,Math.min(WORLD_WIDTH,anchor.x+offset.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,anchor.y+offset.y))};if(Math.hypot(u.x-target.x,(u.y-target.y)*3)<=.75){u.x=target.x;u.y=target.y;u.groupId=order.groupId;u.groupSlot=order.slot;u.originBase=members[0].originBase;u.rallyX=members[0].rallyX;u.rallyY=members[0].rallyY;u.angle=members[0].angle;u.travelAngle=u.angle;u.moveSpeed=0;u.target=null;delete u.joinOrder;}else u.target=target;}}
+function transferTroopToClickedGroup(p){const hit=units.slice().reverse().find(u=>TYPES[u.type].speed&&Math.hypot(u.x-p.x,u.y-p.y)<28);if(!hit||hit.joinOrder)return false;const destination=units.filter(u=>TYPES[u.type].speed&&u.groupId===hit.groupId),source=units.find(u=>selected.has(u.id)&&!u.joinOrder&&u.type===hit.type&&u.team===hit.team&&u.team===PLAYER_TEAM&&u.groupId!==hit.groupId);if(!source)return false;const reserved=reservedJoinSlots(hit.groupId);if(destination.length+reserved.length>=GROUP_SIZE){notice('That group has 49 troops or reserved arrival slots.');return false;}const used=new Set([...destination.map(u=>u.groupSlot),...reserved]);let slot=0;while(used.has(slot))slot++;const sourceMembers=units.filter(u=>u.groupId===source.groupId&&u.type===source.type&&u.team===source.team);const sourceCapacity=Math.max(1,groupHealthSummary(sourceMembers).capacity-1);for(const member of sourceMembers)member.groupHealthCapacity=sourceCapacity;selected.delete(source.id);source.groupId=++nextGroupId;source.groupSlot=0;source.groupHealthCapacity=1;source.originBase=null;source.joinOrder={groupId:hit.groupId,slot};updatePendingGroupJoins();addOrderMarker(hit.x,hit.y,'transfer');notice('One '+TYPES[source.type].name+' is moving to the other group.');return true;}
+function updatePendingGroupJoins(){for(const u of units){if(!u.joinOrder)continue;const order=u.joinOrder,members=units.filter(v=>v.groupId===order.groupId&&v.type===u.type&&v.team===u.team&&v.hp>0);if(!members.length||members.length>=GROUP_SIZE||members.some(v=>v.groupSlot===order.slot)){delete u.joinOrder;u.target=null;continue;}const anchor=members.reduce((p,v)=>{const o=formationOffset(v.type,v.groupSlot);p.x+=v.x-o.x;p.y+=v.y-o.y;return p;},{x:0,y:0});anchor.x/=members.length;anchor.y/=members.length;const offset=formationOffset(u.type,order.slot),target={x:Math.max(0,Math.min(WORLD_WIDTH,anchor.x+offset.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,anchor.y+offset.y))};if(Math.hypot(u.x-target.x,(u.y-target.y)*3)<=.75){u.x=target.x;u.y=target.y;u.groupId=order.groupId;u.groupSlot=order.slot;u.groupHealthCapacity=groupHealthSummary(members).capacity;u.originBase=members[0].originBase;u.rallyX=members[0].rallyX;u.rallyY=members[0].rallyY;u.angle=members[0].angle;u.travelAngle=u.angle;u.moveSpeed=0;u.target=null;delete u.joinOrder;}else u.target=target;}}
 function drawOrderMarkers(){ctx.save();for(let i=orderMarkers.length-1;i>=0;i--){const m=orderMarkers[i],frame=Math.floor((last-m.started)*60/1000)+1;if(frame>10){orderMarkers.splice(i,1);continue;}ctx.globalAlpha=.5;ctx.strokeStyle=m.kind==='transfer'?'#00ffff':'#ffffff';ctx.lineWidth=5/zoom;ctx.beginPath();ctx.ellipse(m.x,m.y,frame*3/zoom,frame/zoom,0,0,Math.PI*2);ctx.stroke();}ctx.restore();}
 document.addEventListener('contextmenu',e=>{if(e.target.closest?.('#field,aside,dialog'))e.preventDefault();});
 document.addEventListener('dragstart',e=>{if(e.target.tagName==='IMG')e.preventDefault();});
@@ -454,6 +454,7 @@ let showWeaponRanges=true,combatClock=0;
 const combatCooldowns=new Map(),combatFiredAt=new WeakMap();
 function combatDistance(a,b){return Math.hypot(b.x-a.x,(b.y-a.y)*3);}
 function combatGroups(){
+ for(const u of units)if(!TYPES[u.type].speed)syncBaseDefenceHealth(u);
  const out=troopGroups(units.filter(u=>u.hp>0)).map(members=>{
   const first=members[0];let x=0,y=0;
   for(const u of members){const o=formationOffset(u.type,u.groupSlot??0);x+=u.x-o.x;y+=u.y-o.y;}
@@ -465,7 +466,7 @@ function combatGroups(){
 function weaponRange(group,target=null){
  const stat=COMBAT_STATS[group.type],first=group.members[0];
  let radius=stat?stat.range*90:TYPES[group.type].range;
- if(!stat)return radius*((first.maxUpgraded||first.specialUpgrades?.range)?3:1);
+ if(!stat)return radius*((first.maxUpgraded||first.specialUpgrades?.range)?2:1);
  let multiplier=1;
  if(group.type==='aa'&&target?.type==='heli')multiplier=3;
  const firing=target?.firing;
@@ -478,14 +479,14 @@ function shotDamage(attacker,target){
  let firepower=stat.firepower;
  if(attacker.type==='aa'&&target.type==='heli')firepower=stat.special;
  if(attacker.type==='heli'&&!['heli','jet'].includes(target.type))firepower=stat.special;
- // Bases retain their existing sandbox durability; troop armour uses DW5 stats.
+ // Troop armour uses DW5 stats; base damage normalization remains a sandbox rule.
  const armour=COMBAT_STATS[target.type]?.armor??100;
  return firepower/armour*TYPES[target.type].hp/100;
 }
 function updateDivisionCombat(dt){
- combatClock+=dt;shots.forEach(s=>s.life-=dt);shots=shots.filter(s=>s.life>0);
+ combatClock+=dt;for(const u of units)u.casualtyCooldown=Math.max(0,(Number(u.casualtyCooldown)||0)-dt);shots.forEach(s=>s.life-=dt);shots=shots.filter(s=>s.life>0);
  const groups=combatGroups(),damage=new Map(),liveKeys=new Set();
- for(const g of groups)g.firing=g.members.some(u=>combatClock-(combatFiredAt.get(u)??-Infinity)<1);
+ for(const g of groups){syncGroupHealthCapacity(g);g.firing=g.members.some(u=>combatClock-(combatFiredAt.get(u)??-Infinity)<1);}
  for(const g of groups){
   liveKeys.add(g.key);const cooldown=Math.max(0,(combatCooldowns.get(g.key)??0)-dt);combatCooldowns.set(g.key,cooldown);
   if(!(COMBAT_STATS[g.type]?.firepower??TYPES[g.type].damage))continue;
@@ -499,20 +500,21 @@ function updateDivisionCombat(dt){
   if(!target)continue;
   for(const u of g.members){u.aimAngle=Math.atan2((target.y-u.y)*3,target.x-u.x);u.aimUntil=last+1000;}
   if(cooldown>0)continue;
-  combatCooldowns.set(g.key,.8);const predicted=new Map(target.members.map(u=>[u.id,u.hp]));let index=0;
-  for(const u of g.members){
-   const victim=target.members.find(v=>(predicted.get(v.id)??0)>0)??target.members[index%target.members.length];index++;
-   const amount=shotDamage(u,victim);predicted.set(victim.id,predicted.get(victim.id)-amount);
-   damage.set(victim,(damage.get(victim)??0)+amount);combatFiredAt.set(u,combatClock);
+  combatCooldowns.set(g.key,.8);
+  const victim=target.members.reduce((a,b)=>(b.groupSlot??0)>(a.groupSlot??0)?b:a);
+  const shooters=TYPES[g.type].speed?g.members:Array.from({length:baseGunCount(g.members[0])},()=>g.members[0]);
+  for(const u of shooters){
+   const amount=shotDamage(u,victim);
+   damage.set(target,(damage.get(target)??0)+amount);combatFiredAt.set(u,combatClock);
    const kind=COMBAT_STATS[u.type]?.sound??'mg';
-   shots.push({x:u.x,y:u.y,tx:victim.x,ty:victim.y,life:.18,total:.18,kind});
+   shots.push({x:TYPES[u.type].speed?u.x:g.x,y:TYPES[u.type].speed?u.y:g.y,tx:TYPES[victim.type].speed?victim.x:target.x,ty:TYPES[victim.type].speed?victim.y:target.y,life:.18,total:.18,kind});
    u.aimAngle=Math.atan2((victim.y-u.y)*3,victim.x-u.x);
   }
   queueCombatSound(COMBAT_STATS[g.type]?.sound??'mg',g.x,g.y);
  }
  // Resolve together so array order never denies a division its return volley.
- for(const [u,amount]of damage)u.hp-=amount;
- for(const u of units)if(u.hp<=0){selected.delete(u.id);queueCombatSound('explo',u.x,u.y);}
+ for(const [group,amount]of damage)applyGroupDamage(group,amount);
+ for(const u of units)if(u.hp<=0){selected.delete(u.id);}
  units=units.filter(u=>u.hp>0);
  for(const key of combatCooldowns.keys())if(!liveKeys.has(key))combatCooldowns.delete(key);
  flushCombatSounds();
@@ -553,3 +555,52 @@ $('combat-sound').onclick=()=>{
  else{for(const pool of combatAudio.pools.values())for(const voice of pool)voice.pause();combatAudio.pending.clear();}
 };
 $('combat-ranges').onclick=()=>{showWeaponRanges=!showWeaponRanges;$('combat-ranges').textContent='Ranges: '+(showWeaponRanges?'On':'Off');$('combat-ranges').setAttribute('aria-pressed',String(showWeaponRanges));};
+
+// Sandbox fallbacks: native server HP/kill interval are not exposed by the client.
+const TURRET_HP=500,CASUALTY_INTERVAL=1;
+function baseGunCapacity(u){return u.maxUpgraded?50:Math.max(2,Math.min(50,Math.trunc(u.defenceGuns??2)));}
+function turretMaxHealth(u){return TURRET_HP*((u.maxUpgraded||(u.wallLevel??1)>1)?10:1);}
+function syncBaseDefenceHealth(u){
+ const count=baseGunCapacity(u),maximum=turretMaxHealth(u);
+ if(!Array.isArray(u.turretHealth)){
+  // Migrate old aggregate damage without repairing an already damaged base.
+  let remaining=count*maximum*Math.max(0,Math.min(1,(u.hp??TYPES[u.type].hp)/TYPES[u.type].hp));
+  u.turretHealth=Array.from({length:count},()=>{const h=Math.min(maximum,remaining);remaining-=h;return h;});
+ }else{
+  const previous=u.turretHealthMax??maximum;
+  // Scale damage proportionally when adding/removing the wall, not a full heal.
+  u.turretHealth=u.turretHealth.slice(0,count).map(h=>Math.max(0,Math.min(maximum,(Number(h)||0)/previous*maximum)));
+  while(u.turretHealth.length<count)u.turretHealth.push(maximum);
+ }
+ u.turretHealthMax=maximum;u.hp=u.turretHealth.reduce((n,h)=>n+h,0);
+ return u.hp;
+}
+function baseMaxHealth(u){return baseGunCapacity(u)*turretMaxHealth(u);}
+function resetBaseDefenceHealth(u){delete u.turretHealth;delete u.turretHealthMax;u.hp=TYPES[u.type].hp;u.casualtyCooldown=0;syncBaseDefenceHealth(u);}
+function groupHealthSummary(members){
+ const capacity=Math.max(members.length,...members.map(u=>Math.max(1,Math.min(49,Number(u.groupHealthCapacity)||1))));
+ return{health:members.reduce((n,u)=>n+Math.max(0,u.hp),0),maximum:capacity*TYPES[members[0].type].hp,capacity};
+}
+function syncGroupHealthCapacity(group){
+ if(!TYPES[group.type].speed)return;
+ const capacity=groupHealthSummary(group.members).capacity;
+ for(const u of group.members)u.groupHealthCapacity=capacity;
+}
+function applyGroupDamage(group,amount){
+ if(!(amount>0)||group.members.some(u=>(u.casualtyCooldown??0)>1e-8))return;
+ const base=!TYPES[group.type].speed;
+ const victim=base?group.members[0]:group.members.reduce((last,u)=>(u.groupSlot??0)>(last.groupSlot??0)||((u.groupSlot??0)===(last.groupSlot??0)&&u.id>last.id)?u:last);
+ let died=false;
+ if(base){
+  syncBaseDefenceHealth(victim);let slot=victim.turretHealth.length-1;while(slot>=0&&victim.turretHealth[slot]<=0)slot--;
+  if(slot<0)return;victim.turretHealth[slot]=Math.max(0,victim.turretHealth[slot]-amount);died=victim.turretHealth[slot]===0;
+  victim.hp=victim.turretHealth.reduce((n,h)=>n+h,0);
+ }else{victim.hp=Math.max(0,victim.hp-amount);died=victim.hp===0;}
+ // Discard overkill and all incoming damage during this simulation-time lock.
+ // No damage debt is saved up to kill more members after firing has stopped.
+ if(died){for(const u of group.members)u.casualtyCooldown=CASUALTY_INTERVAL;queueCombatSound('explo',victim.x,victim.y);}
+}
+function drawGroupHealth(members,x,y){
+ const h=groupHealthSummary(members);ctx.save();ctx.fillStyle='#152014';ctx.fillRect(x-42,y+6,84,4);ctx.fillStyle=troopRelationColor(members[0].team);ctx.fillRect(x-42,y+6,84*Math.max(0,Math.min(1,h.health/h.maximum)),4);
+ ctx.font='10px Tahoma,Arial,sans-serif';ctx.lineWidth=2;const text=Math.ceil(h.health)+' / '+Math.ceil(h.maximum)+' HP';ctx.strokeStyle='#000';ctx.strokeText(text,x,y+22);ctx.fillStyle=troopRelationColor(members[0].team);ctx.fillText(text,x,y+22);ctx.restore();
+}
