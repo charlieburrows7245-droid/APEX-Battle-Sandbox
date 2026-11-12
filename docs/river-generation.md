@@ -11,3 +11,14 @@ APEX now generates one stable letter-coded river from the saved seed, using adja
 `apexImportDw5River(encoded, flusspos, startY=0)` imports a real DW5 5 stream with its required origin. A saved object `{encoded, startX, startY}` is also accepted. The captured map 1415 uses `flusspos=22327`. Import mode replaces procedural rivers rather than drawing both sets on top of each other. Invalid older data is left intact in storage, but not rendered.
 
 Validation: `node tests/rivers.test.cjs`; production, unit stats and base range regression tests. Native decoder positions were compared against the supplied client's `de4` implementation with `Ju=0`.
+
+
+## Full maps (1.17.0)
+
+APEX generates exactly 500 bases: 476 military, 20 helicopter, 4 airbases. The helicopter/airbase mix was decoded from the supplied awversion=5 BR snapshot (orientation 2/3). DW5 reserves 500 base slots, including an index-zero sentinel; this is evidence for the captured mix, not a guarantee of every server map. The requested APEX total is 500 actual bases. One military base starts owned; others are unclaimed. No capture system is added by this change.
+
+The client renders 600 Pi bytes as alternating native hinder0..4 cliff images, through the native XOR alpha mask. APEX uses the same five images, mask, byte-quantized horizontal positions and stratified rows, adapting the vertical scale to the existing square map. Cliff collision uses elliptical footprints shared with ground obstacle avoidance; aircraft ignore these ground obstacles. Base placement rejects overlaps with cliffs, river corridors and existing bases.
+
+The DW5 client decodes bridge letters q/r/s/t without a count limit. APEX now places bridges according to seeded spacing at compatible river headings, with no total cap. A 500-seed river test includes maps with at least 17 bridges. Exact random seeds, bridge frequency, cliff collision geometry and placement rules belong to the DW5 server and are not present in the captured client. APEX supplies its own deterministic placement rules.
+
+Generate map replaces the battlefield. Save/Load includes the terrain seed. At distant zoom, bases use markers instead of allocating 500 full-resolution base surfaces.

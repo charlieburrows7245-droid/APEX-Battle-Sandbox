@@ -1,3 +1,10 @@
+v1.17.0 - Full map generation
+- Removed the three-bridge cap; crossings follow seeded spacing along the river.
+- Generate map creates 500 bases: 476 military, 20 helicopter and 4 airbases.
+- Added native masked cliff assets and ground obstacle collision.
+- Added helicopter base visuals/menu and distant base markers.
+- Save/Load preserves the map seed.
+
 v1.16.4
 - River always starts at the top; bends and exit edges vary.
 - Generate one to three spaced native DW5 bridge crossings, rendered above banks and marked on the minimap.

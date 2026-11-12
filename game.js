@@ -5,6 +5,8 @@ const MAP_LIMIT=1200,MAP_STEP_X=90,MAP_STEP_Y=90,WORLD_WIDTH=MAP_LIMIT*MAP_STEP_
 function mapCoordinates(p){return{x:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.x/MAP_STEP_X))),y:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.y/MAP_STEP_Y)))}}
 const TYPES={tank:{name:'Type 99',icon:'▰',speed:150,dw5Speed:2,range:165,damage:19,hp:160},aa:{name:'TanSAM',icon:'▤',speed:75,dw5Speed:1,range:240,damage:15,hp:110},heli:{name:'Apache',icon:'✣',speed:112,range:180,damage:16,hp:100},jet:{name:'J-10',icon:'✈',speed:170,range:210,damage:22,hp:100},raptor:{name:'F-22C Raptor',icon:'✈',speed:8*75,range:12*90,damage:50,hp:65000},base:{name:'Military base',icon:'▦',speed:0,range:210,damage:12,hp:1000},airbase:{name:'Airbase',icon:'⊞',speed:0,range:210,damage:12,hp:800}};
 
+TYPES.helibase={...TYPES.base,name:'Helicopter base',icon:'✣'};
+
 // Published per-unit combat stats; health pools retain the existing sandbox scale.
 for(const entry of DW5_MENU_UNITS){
  const stat=entry.combat;
@@ -13,7 +15,7 @@ for(const entry of DW5_MENU_UNITS){
 }
 
 let units=[],selected=new Set(),team=0,tool='select',paused=false,speed=1,zoom=.65,cam={x:1200,y:800},W=0,H=0,drag=null,mouse={x:0,y:0},shots=[],uid=0,last=0,statsTimer=0;
-const colors=['#65ff38','#ff3535','#00cfff'];
+const colors=['#65ff38','#ff3535','#00cfff','#c2bd9f'];
 function notice(t){$('notice').textContent=t}
 function setTool(t){tool=t;document.querySelectorAll('[data-type]').forEach(b=>b.classList.toggle('active',b.dataset.type===t));$('select').classList.toggle('active',t==='select');canvas.style.cursor=t==='select'?'default':'crosshair'}
 for(const [id,t] of Object.entries(TYPES)){if(t.speed&&!['heli','raptor'].includes(id))continue;let b=document.createElement('button');b.dataset.type=id;b.innerHTML=`<span>${t.icon}</span>${id==='heli'?'Apache helicopter':t.name}`;b.onclick=()=>{setTool(id);notice('Click the battlefield to place '+t.name)};$('catalog').append(b)}
@@ -26,7 +28,7 @@ let nextGroupId=0;
 function troopSpacing(type){return DW5_MENU_UNITS.find(e=>e.type===type)?.render?.spacing??48;}
 function formationOffset(type,index){return{x:DW5_FORMATION_X[index%49]*troopSpacing(type),y:DW5_FORMATION_Y[index%49]*troopSpacing(type)/3};}
 function friendlyTeams(a,b){return a===b||(a===0&&b===2)||(a===2&&b===0);}
-function troopRelationColor(side){return side===PLAYER_TEAM?'#65ff38':friendlyTeams(side,PLAYER_TEAM)?'#00cfff':'#ff3535';}
+function troopRelationColor(side){return side===3?'#c2bd9f':side===PLAYER_TEAM?'#65ff38':friendlyTeams(side,PLAYER_TEAM)?'#00cfff':'#ff3535';}
 function troopGroups(list=units){const groups=new Map();for(const u of list){if(!TYPES[u.type]?.speed)continue;const key=u.groupId??'single-'+u.id;let g=groups.get(key);if(!g){g=[];groups.set(key,g);}g.push(u);}return [...groups.values()];}
 function repairTroopGroups(){divisionMotion.clear();nextGroupId=units.reduce((max,u)=>Math.max(max,Number(u.groupId)||0),nextGroupId);const pending=new Map(),remap=new Map();for(const u of units){if(!TYPES[u.type]?.speed)continue;const key=(u.groupId??'legacy')+':'+u.team+':'+u.type;let batch=pending.get(key);if(!batch||batch.count>=49){batch={id:++nextGroupId,count:0,used:new Set()};pending.set(key,batch);if(!remap.has(key))remap.set(key,batch.id);}let slot=u.groupSlot;if(!Number.isInteger(slot)||slot<0||slot>=49||batch.used.has(slot)){slot=0;while(batch.used.has(slot))slot++;}batch.used.add(slot);u.groupId=batch.id;u.groupSlot=slot;batch.count++;}for(const u of units)if(u.joinOrder){const id=remap.get(u.joinOrder.groupId+':'+u.team+':'+u.type);if(id)u.joinOrder.groupId=id;else{delete u.joinOrder;u.target=null;}}}
 function expandGroupSelection(){const ids=new Set(units.filter(u=>selected.has(u.id)&&TYPES[u.type].speed).map(u=>u.groupId));for(const u of units)if(TYPES[u.type].speed&&ids.has(u.groupId))selected.add(u.id);}
@@ -87,8 +89,8 @@ function spawn(type,x,y,side,count,originBase=null){
 function demo(){units=[];selected.clear();shots=[];deathEffects.length=0;add('airbase',1110,620,0);add('base',2050,1300,1);spawn('heli',850,1030,0,49);spawn('tank',650,1270,0,14);spawn('aa',1430,1110,0,7);spawn('heli',2110,700,1,7);cam={x:1110,y:690};zoom=1.1;notice('Raised airbase demo. Select troops and left-click ground to move. Right-drag to pan.');}
 $('blue').onclick=()=>setTeam(0);$('red').onclick=()=>setTeam(1);$('ally').onclick=()=>setTeam(2);function setTeam(t){team=t;$('blue').classList.toggle('active',t===0);$('red').classList.toggle('active',t===1);$('ally').classList.toggle('active',t===2)}
 $('select').onclick=()=>setTool('select');function togglePause(){paused=!paused;$('pause').textContent=paused?'▶ Resume':'Ⅱ Pause'}$('pause').onclick=togglePause;$('speed').onchange=e=>speed=+e.target.value;$('reset').onclick=()=>{if(confirm('Replace the current battlefield with the demo?'))demo()};$('clear').onclick=()=>{if(confirm('Clear all troops and bases?')){units=[];selected.clear();notice('Empty battlefield ready. Choose a unit to deploy.')}};
-$('save').onclick=()=>{try{localStorage.setItem('apex-sandbox-v1',JSON.stringify({units,cam,zoom,uid}));notice('Scenario saved in this browser.')}catch{notice('Could not save: browser storage is unavailable.')}};
-$('load').onclick=()=>{try{let s=JSON.parse(localStorage.getItem('apex-sandbox-v1'));if(!s||!Array.isArray(s.units))return notice('No saved scenario in this browser.');units=s.units;repairTroopGroups();cam=s.cam;zoom=s.zoom;uid=s.uid;selected.clear();shots=[];notice('Saved scenario loaded.')}catch{notice('Could not load the saved scenario.')}};
+$('save').onclick=()=>{try{localStorage.setItem('apex-sandbox-v1',JSON.stringify({units,cam,zoom,uid,mapSeed:riverSeed}));notice('Scenario saved in this browser.')}catch{notice('Could not save: browser storage is unavailable.')}};
+$('load').onclick=()=>{try{let s=JSON.parse(localStorage.getItem('apex-sandbox-v1'));if(!s||!Array.isArray(s.units))return notice('No saved scenario in this browser.');if(Number.isFinite(s.mapSeed)){riverSeed=s.mapSeed>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));importedRiverSegments=[];localStorage.removeItem('apexDw5River');generateDw5StyleRivers();mapTerrain=Dw5World.generate(riverSeed,WORLD_WIDTH,WORLD_HEIGHT,activeRiverPieces());}units=s.units;repairTroopGroups();cam=s.cam;zoom=s.zoom;uid=s.uid;selected.clear();shots=[];notice('Saved scenario loaded.')}catch{notice('Could not load the saved scenario.')}};
 $('home').onclick=()=>{cam={x:WORLD_WIDTH/2,y:WORLD_HEIGHT/2};zoom=Math.min((W-80)/WORLD_WIDTH,(H-80)/WORLD_HEIGHT)};$('zin').onclick=()=>zoom=Math.min(2,zoom*1.2);$('zout').onclick=()=>zoom=Math.max(.005,zoom/1.2);
 function resize(){W=canvas.clientWidth;H=canvas.clientHeight;canvas.width=W*devicePixelRatio;canvas.height=H*devicePixelRatio}new ResizeObserver(resize).observe(canvas);
 function world(p){return{x:(p.x-W/2)/zoom+cam.x,y:(p.y-H/2)/zoom+cam.y}}function pos(e){let r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
@@ -114,7 +116,7 @@ canvas.onwheel=e=>{e.preventDefault();let p=pos(e),before=world(p);zoom=Math.max
 window.onkeydown=e=>{if(['INPUT','SELECT'].includes(e.target.tagName))return;if(e.code==='Space'){e.preventDefault();togglePause()}if(e.key==='Escape'){setTool('select');selected.clear()}if(e.key==='Delete'){units=units.filter(u=>!selected.has(u.id));selected.clear()}if(e.key.toLowerCase()==='a'){units.filter(u=>u.team===team&&TYPES[u.type].speed).forEach(u=>selected.add(u.id))}};
 mini.onclick=e=>{let r=mini.getBoundingClientRect();cam={x:(e.clientX-r.left)/r.width*WORLD_WIDTH,y:(e.clientY-r.top)/r.height*WORLD_HEIGHT}};
 const terrain=document.createElement('canvas');terrain.width=terrain.height=256;const tc=terrain.getContext('2d');let seed=42;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}tc.fillStyle='#737b4b';tc.fillRect(0,0,256,256);for(let i=0;i<28000;i++){let n=rand();tc.fillStyle=n>.5?'rgba(36,47,22,.12)':'rgba(204,196,123,.15)';tc.fillRect(rand()*256,rand()*256,1+rand()*3,1+rand()*2)}const grass=ctx.createPattern(terrain,'repeat');
-const dwArt={};const groundBlendArt={};let artRevision=0;const baseRenderCache=new WeakMap();
+const dwArt={};const groundBlendArt={};let artRevision=0;const baseRenderCache=new Map();
 // Feather each ground tile once on load; the cached view composites overlaps.
 function blendGroundTile(im){
  const out=document.createElement('canvas');out.width=im.naturalWidth;out.height=im.naturalHeight;const c=out.getContext('2d');c.drawImage(im,0,0);const pixels=c.getImageData(0,0,out.width,out.height),d=pixels.data,w=out.width,h=out.height;
@@ -124,7 +126,7 @@ function blendGroundTile(im){
  }c.putImageData(pixels,0,0);return out;
 }
 function blendTerrain(im){const out=document.createElement('canvas');out.width=im.naturalWidth;out.height=im.naturalHeight;const c=out.getContext('2d');c.drawImage(im,0,0);const pixels=c.getImageData(0,0,out.width,out.height),d=pixels.data,w=out.width,h=out.height;for(let y=0;y<h;y++)for(let x=0;x<w;x++){const ripple=9*Math.sin(x*.029)+5*Math.sin(x*.071+y*.037);const sideRipple=11*Math.sin(y*.047)+5*Math.cos(y*.107);const edge=Math.min((x-sideRipple)/105,(w-1-x+sideRipple)/105,(y-ripple)/65,(h-1-y+ripple)/75);const a=Math.max(0,Math.min(1,edge));d[(y*w+x)*4+3]=Math.round(255*a*a*(3-2*a))}c.putImageData(pixels,0,0);return out}
-for(const name of ['boden0.jpg','boden1.jpg','boden2.jpg','boden3.jpg','boden4.jpg','boden5.jpg','boden6.jpg','g0.png','g1.png','g2.png','g3.png','g4.png','g5.png','g6.png','g7.png','g8.png','airbase1.png','airbase2.png','airbase3.png','airbase.jpg','jammerturm.png','radarturm1.png','radarturm2.png','detec1.png','detec2.png','rakerw.png','garage2a.png','berg1.jpg','berg4.jpg','garage1b.png','garage2b.png','berg2.jpg','g9.png','mauer1a.png','mauer1d.png','mauer2a.png','mauer2b.png','mauer1b.png','mauer2d.png','flak.png','icons.jpg','bmischer.png','oelpump.png','kamin.png','berg1b.png','palmen.png','flaggeg.png','flaggeb.png','flagger.png','flagget.png','flagges.png']){const im=new Image();im.onload=()=>{artRevision++;if(/^boden[0-6]\.jpg$/.test(name))groundBlendArt[name]=blendGroundTile(im);if(/^berg[124]\.jpg$/.test(name))dwArt[name]=blendTerrain(im)};im.src='assets/i/'+name;dwArt[name]=im}
+for(const name of ['boden0.jpg','boden1.jpg','boden2.jpg','boden3.jpg','boden4.jpg','boden5.jpg','boden6.jpg','g0.png','g1.png','g2.png','g3.png','g4.png','g5.png','g6.png','g7.png','g8.png','airbase1.png','airbase2.png','airbase3.png','airbase.jpg','jammerturm.png','radarturm1.png','radarturm2.png','detec1.png','detec2.png','rakerw.png','garage2a.png','berg1.jpg','berg3.jpg','hangar1a.png','hangar1b.png','berg4.jpg','garage1b.png','garage2b.png','berg2.jpg','g9.png','mauer1a.png','mauer1d.png','mauer2a.png','mauer2b.png','mauer1b.png','mauer2d.png','flak.png','icons.jpg','bmischer.png','oelpump.png','kamin.png','berg1b.png','palmen.png','flaggeg.png','flaggeb.png','flagger.png','flagget.png','flagges.png']){const im=new Image();im.onload=()=>{artRevision++;if(/^boden[0-6]\.jpg$/.test(name))groundBlendArt[name]=blendGroundTile(im);if(/^berg[1234]\.jpg$/.test(name))dwArt[name]=blendTerrain(im)};im.src='assets/i/'+name;dwArt[name]=im}
 function buildingSprite(name,level,x,y,w,h,frames=10){let im=dwArt[name];if(!im?.complete||!im.naturalWidth)return;const fw=im.naturalWidth/frames;ctx.drawImage(im,fw*level,0,fw,im.naturalHeight,x-w/2,y-h/2,w,h)}
 // DW5: native terrain is 1500x500; its defence anchor is (1260,400)
 // from the image top-left, or (510,150) from the image centre.
@@ -176,7 +178,7 @@ if(enabled('radar')){picture('radarturm1.png',ex-90,ey-20);}
 if(enabled('jammer'))picture('jammerturm.png',ex+(air?95:90),ey+(air?-60:-20));
 if(enabled('detector')){picture('detec1.png',ex+30,ey-45);}
 }
-function paintBase(u){ctx.save();const air=u.type==='airbase',w=1500,h=500;const terrain=dwArt[air?'berg4.jpg':'berg2.jpg'];if((terrain.complete&&terrain.naturalWidth)||terrain instanceof HTMLCanvasElement)ctx.drawImage(terrain,-w/2,-h/2,w,h);
+function paintBase(u){ctx.save();const air=u.type==='airbase',w=1500,h=500;const terrain=dwArt[air?'berg4.jpg':u.type==='helibase'?'berg3.jpg':'berg2.jpg'];if((terrain.complete&&terrain.naturalWidth)||terrain instanceof HTMLCanvasElement)ctx.drawImage(terrain,-w/2,-h/2,w,h);
 const level=u.maxUpgraded?19:Math.max(0,Math.min(19,(u.factoryLevel??1)-1));if(u.maxUpgraded){if(air){nativeBuilding('g4.png',4,5,-160,-174);nativeBuilding('g5.png',4,5,-330,-145);nativeBuilding('g6.png',5,6,240,-50);nativeBuilding('g7.png',4,5,-400,-100);nativeBuilding('g9.png',2,3,240,-10)}else{nativeBuilding('g4.png',4,5,350,-30);nativeBuilding('g5.png',4,5,-220,-80);nativeBuilding('g6.png',5,6,70,100);nativeBuilding('g7.png',4,5,-150,-63);nativeBuilding('g9.png',2,3,70,140)}}
 if(air){const hangar=dwArt['airbase2.png'];if(hangar.complete&&hangar.naturalWidth)ctx.drawImage(hangar,6.5,-366,417,240);
 // Positions follow the runway: command buildings behind, factories along the front edge.
@@ -186,7 +188,7 @@ nativeFactory('g3.png',factoryStage(u,'fuel'),390,-135);
 nativeFactory('g0.png',factoryStage(u,'concrete'),-60,23);
 nativeFactory('g2.png',factoryStage(u,'carbon'),490,-255);
 nativeFactory('g1.png',factoryStage(u,'steel'),75,-15);const entranceBack=dwArt['airbase.jpg'],entrance=dwArt['airbase3.png'];if(entranceBack.complete&&entranceBack.naturalWidth)ctx.drawImage(entranceBack,342,34);if(entrance.complete&&entrance.naturalWidth)ctx.drawImage(entrance,422-entrance.naturalWidth/2,99-entrance.naturalHeight/2);
-}else{const back=dwArt['garage2a.png'];if(back.complete&&back.naturalWidth)ctx.drawImage(back,348-back.naturalWidth/2,76-back.naturalHeight/2);const entry=dwArt['garage2b.png'];if(entry.complete&&entry.naturalWidth)ctx.drawImage(entry,348-entry.naturalWidth/2,76-entry.naturalHeight/2);nativeFactory('g3.png',factoryStage(u,'fuel'),-162,26);nativeFactory('g0.png',factoryStage(u,'concrete'),148,-4);nativeFactory('g2.png',factoryStage(u,'carbon'),198,-84);nativeFactory('g1.png',factoryStage(u,'steel'),-22,-84)}
+}else{const back=dwArt[u.type==='helibase'?'hangar1a.png':'garage2a.png'];if(back.complete&&back.naturalWidth)ctx.drawImage(back,348-back.naturalWidth/2,76-back.naturalHeight/2);const entry=dwArt[u.type==='helibase'?'hangar1b.png':'garage2b.png'];if(entry.complete&&entry.naturalWidth)ctx.drawImage(entry,348-entry.naturalWidth/2,76-entry.naturalHeight/2);nativeFactory('g3.png',factoryStage(u,'fuel'),-162,26);nativeFactory('g0.png',factoryStage(u,'concrete'),148,-4);nativeFactory('g2.png',factoryStage(u,'carbon'),198,-84);nativeFactory('g1.png',factoryStage(u,'steel'),-22,-84)}
 drawBaseUpgrades(u,air);
 ctx.restore()}
 // Composite bases once per appearance/animation change, instead of redrawing
@@ -220,13 +222,13 @@ function drawTurretHealthBars(u){
 function actualBase(u){syncBaseDefenceHealth(u);
  const up=u.specialUpgrades??{};
  const key=JSON.stringify([artRevision,u.type,u.factoryLevel,u.maxUpgraded,u.militaryCentralLevel,u.wallLevel,u.defenceGuns,baseGunCount(u),u.factoryLevels,up]);
- let cached=baseRenderCache.get(u);
+ let cached=baseRenderCache.get(key);
  if(!cached||cached.key!==key){
   const surface=cached?.surface??document.createElement('canvas');
   if(!cached){surface.width=1800;surface.height=1000;}
   const main=ctx;ctx=surface.getContext('2d');
   try{ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,1800,1000);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.translate(900,500);paintBase(u);}finally{ctx=main;}
-  cached={surface,key};baseRenderCache.set(u,cached);
+  cached={surface,key};baseRenderCache.set(key,cached);while(baseRenderCache.size>24)baseRenderCache.delete(baseRenderCache.keys().next().value);
  }
  ctx.drawImage(cached.surface,u.x-900,u.y-500);ctx.save();ctx.translate(u.x,u.y);drawStarterDefences(u,u.type==='airbase');ctx.restore();drawRotatingHeads(u);drawFactoryActivity(u);drawTurretHealthBars(u);
  if(selected.has(u.id)){ctx.save();ctx.translate(u.x,u.y);ctx.strokeStyle='#d8f38e';ctx.lineWidth=2/zoom;ctx.beginPath();ctx.ellipse(0,0,705,225,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#162013';ctx.fillRect(-50,-277,100,4);ctx.fillStyle=colors[u.team];ctx.fillRect(-50,-277,100*u.hp/baseMaxHealth(u),4);ctx.restore();}
@@ -363,7 +365,7 @@ function drawDeathEffects(){
   ctx.restore();
  }
 }
-function drawUnit(u){if(!TYPES[u.type].speed){actualBase(u);drawBaseFlag(u);drawBasePlayerName(u);drawBaseProduction(u);return}const def=nativeTroops[u.type],animation=troopAnimation(u);ctx.save();ctx.translate(u.x,u.y);
+function drawUnit(u){if(!TYPES[u.type].speed){if(zoom<.08){ctx.fillStyle=u.type==='airbase'?'#56a9ff':u.type==='helibase'?'#6ee9cf':colors[u.team];const r=2/zoom;ctx.fillRect(u.x-r,u.y-r,r*2,r*2);return;}actualBase(u);drawBaseFlag(u);drawBasePlayerName(u);drawBaseProduction(u);return}const def=nativeTroops[u.type],animation=troopAnimation(u);ctx.save();ctx.translate(u.x,u.y);
 if(selected.has(u.id)){if(u.target){ctx.setLineDash([5,7]);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(u.target.x-u.x,u.target.y-u.y);ctx.stroke();ctx.setLineDash([])}}
 if(def.air){ctx.globalAlpha=.35;drawTroopHeading(troopArt[def.id+'b'],animation.body,14,22);ctx.globalAlpha=1}
 ctx.save();if(u.type==='heli')ctx.translate(0,Math.sin(animation.time*2.6)*1.2);
@@ -607,11 +609,7 @@ window.apexImportDw5River=function(encoded,flusspos=10000,startY=0){
 };
 generateDw5StyleRivers();
 const riverGenerateButton=document.getElementById('terrain-generate');
-if(riverGenerateButton)riverGenerateButton.addEventListener('click',()=>{
- riverSeed=(riverSeed+1)>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));
- importedRiverSegments=[];localStorage.removeItem('apexDw5River');generateDw5StyleRivers();
- notice('Generated river with '+riverLayouts[0].bridges+' bridges · seed '+riverSeed);
-});
+if(riverGenerateButton)riverGenerateButton.addEventListener('click',()=>generateWorldMap(true));
 function activeRiverPieces(){return importedRiverSegments.length?importedRiverSegments:generatedRiverSegments;}
 function drawGeneratedRivers(){
  ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);
@@ -640,7 +638,7 @@ function drawRiverMinimap(){
 }
 
 let fpsFrames=0,fpsWindow=0,lastMini=0,groundPattern=null;
-function frame(now){fpsFrames++;if(now-fpsWindow>=500){$('fps').textContent='FPS '+Math.round(fpsFrames*1000/(now-fpsWindow));fpsFrames=0;fpsWindow=now;}let dt=Math.min(.05,(now-last)/1000||0);last=now;if(!paused)update(dt*speed);ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.fillStyle='#253021';ctx.fillRect(0,0,W,H);drawTerrainView();drawGeneratedRivers();ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);ctx.strokeStyle='#dce4b609';ctx.lineWidth=1;for(let x=Math.max(0,Math.floor((cam.x-W/(2*zoom))/900)*900);x<=Math.min(WORLD_WIDTH,cam.x+W/(2*zoom));x+=900){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,WORLD_HEIGHT);ctx.stroke()}for(let y=Math.max(0,Math.floor((cam.y-H/(2*zoom))/900)*900);y<=Math.min(WORLD_HEIGHT,cam.y+H/(2*zoom));y+=900){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(WORLD_WIDTH,y);ctx.stroke()}const visible=u=>Math.abs(u.x-cam.x)<W/(2*zoom)+(TYPES[u.type].speed?80:900)&&Math.abs(u.y-cam.y)<H/(2*zoom)+(TYPES[u.type].speed?80:500);for(const u of units)if(!TYPES[u.type].speed&&visible(u))drawUnit(u);// Paint ground vehicles first, helicopters above them, then fixed-wing
+function frame(now){fpsFrames++;if(now-fpsWindow>=500){$('fps').textContent='FPS '+Math.round(fpsFrames*1000/(now-fpsWindow));fpsFrames=0;fpsWindow=now;}let dt=Math.min(.05,(now-last)/1000||0);last=now;if(!paused)update(dt*speed);ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.fillStyle='#253021';ctx.fillRect(0,0,W,H);drawTerrainView();drawGeneratedRivers();drawMapCliffs();ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);ctx.strokeStyle='#dce4b609';ctx.lineWidth=1;for(let x=Math.max(0,Math.floor((cam.x-W/(2*zoom))/900)*900);x<=Math.min(WORLD_WIDTH,cam.x+W/(2*zoom));x+=900){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,WORLD_HEIGHT);ctx.stroke()}for(let y=Math.max(0,Math.floor((cam.y-H/(2*zoom))/900)*900);y<=Math.min(WORLD_HEIGHT,cam.y+H/(2*zoom));y+=900){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(WORLD_WIDTH,y);ctx.stroke()}const visible=u=>Math.abs(u.x-cam.x)<W/(2*zoom)+(TYPES[u.type].speed?80:900)&&Math.abs(u.y-cam.y)<H/(2*zoom)+(TYPES[u.type].speed?80:500);for(const u of units)if(!TYPES[u.type].speed&&visible(u))drawUnit(u);// Paint ground vehicles first, helicopters above them, then fixed-wing
 // aircraft above helicopters. Airborne units do not participate in collision.
 for(const u of units)if(TYPES[u.type].speed&&!nativeTroops[u.type]?.air&&visible(u))drawUnit(u);
 for(const u of units)if(TYPES[u.type].speed&&u.type==='heli'&&visible(u))drawUnit(u);
@@ -668,7 +666,7 @@ drawDeathEffects();for(const u of units)if(TYPES[u.type].speed&&visible(u))drawT
    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+ux*13,y+uy*13);ctx.stroke();
    ctx.restore();
   }else{ctx.strokeStyle='#ffe9a1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.tx,s.ty);ctx.stroke();}
- }ctx.restore();if(drag?.kind==='select'){ctx.fillStyle='#c7e88722';ctx.strokeStyle='#c7e887';let a=drag.start,b=drag.end;ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y)}if(now-lastMini>=100){lastMini=now;mc.fillStyle='#4a5838';mc.fillRect(0,0,mini.width,mini.height);drawRiverMinimap();for(let u of units){mc.fillStyle=colors[u.team];mc.fillRect(u.x/WORLD_WIDTH*mini.width,u.y/WORLD_HEIGHT*mini.height,TYPES[u.type].speed?2:5,TYPES[u.type].speed?2:5)}mc.strokeStyle='#e4efc5';mc.strokeRect((cam.x-W/zoom/2)/WORLD_WIDTH*mini.width,(cam.y-H/zoom/2)/WORLD_HEIGHT*mini.height,W/zoom/WORLD_WIDTH*mini.width,H/zoom/WORLD_HEIGHT*mini.height);}if(now-statsTimer>150){for(const u of units)if(u.production?.endsAt&&u.production.endsAt<=Date.now())delete u.production;const coordinate=mapCoordinates(world(mouse));$('coordinates').textContent=coordinate.x+','+coordinate.y;$('status').textContent=`${paused?'PAUSED':'SIMULATION LIVE'}  ·  YOURS ${units.filter(u=>u.team===0).length} / ALLY ${units.filter(u=>u.team===2).length} / ENEMY ${units.filter(u=>u.team===1).length}  ·  ${Math.round(zoom*100)}%`;$('selection').textContent=selected.size?selected.size+' SELECTED · DELETE TO REMOVE':'NO UNITS SELECTED';statsTimer=now}syncBaseMenuPositions();requestAnimationFrame(frame)}resize();demo();requestAnimationFrame(frame);
+ }ctx.restore();if(drag?.kind==='select'){ctx.fillStyle='#c7e88722';ctx.strokeStyle='#c7e887';let a=drag.start,b=drag.end;ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y)}if(now-lastMini>=100){lastMini=now;mc.fillStyle='#4a5838';mc.fillRect(0,0,mini.width,mini.height);drawRiverMinimap();for(let u of units){mc.fillStyle=u.type==='airbase'?'#56a9ff':u.type==='helibase'?'#6ee9cf':colors[u.team];mc.fillRect(u.x/WORLD_WIDTH*mini.width,u.y/WORLD_HEIGHT*mini.height,2,2)}mc.strokeStyle='#e4efc5';mc.strokeRect((cam.x-W/zoom/2)/WORLD_WIDTH*mini.width,(cam.y-H/zoom/2)/WORLD_HEIGHT*mini.height,W/zoom/WORLD_WIDTH*mini.width,H/zoom/WORLD_HEIGHT*mini.height);}if(now-statsTimer>150){for(const u of units)if(u.production?.endsAt&&u.production.endsAt<=Date.now())delete u.production;const coordinate=mapCoordinates(world(mouse));$('coordinates').textContent=coordinate.x+','+coordinate.y;$('status').textContent=`${paused?'PAUSED':'SIMULATION LIVE'}  ·  YOURS ${units.filter(u=>u.team===0).length} / ALLY ${units.filter(u=>u.team===2).length} / ENEMY ${units.filter(u=>u.team===1).length}  ·  ${Math.round(zoom*100)}%`;$('selection').textContent=selected.size?selected.size+' SELECTED · DELETE TO REMOVE':'NO UNITS SELECTED';statsTimer=now}syncBaseMenuPositions();requestAnimationFrame(frame)}resize();requestAnimationFrame(()=>{generateWorldMap(false);requestAnimationFrame(frame);});
 
 $('editor-toggle').onclick=()=>{const collapsed=document.body.classList.toggle('editor-hidden');$('editor-toggle').textContent=collapsed?'☰ Sandbox editor':'✕ Close editor';$('editor-toggle').setAttribute('aria-expanded',String(!collapsed))};
 
@@ -745,7 +743,7 @@ function refreshBaseUnitMenu(u){
   b.onpointerleave=()=>{if(im.dataset.still)im.src=im.dataset.still;};
   b.onclick=()=>{if(action.key==='queue'){notice(level?level+' units queued; each takes 3 seconds.':'Queue empty.');return;}if(maxed)return;if(action.key==='flak')upgradeBaseFlak(u);else if(action.key==='wall')u.wallLevel=level+1;else{u.specialUpgrades??={};u.specialUpgrades.range=true;}refreshBaseUnitMenu(u);placeBaseUnitMenu(u);};grid.append(b);
  }
- const entries=DW5_MENU_UNITS.filter(entry=>baseUnitKind==='aircraft'?entry.aircraftMenu:!entry.air||entry.type==='heli');
+ const entries=DW5_MENU_UNITS.filter(entry=>baseUnitKind==='aircraft'?entry.aircraftMenu:!entry.air||(u.type==='helibase'&&entry.type==='heli'));
  for(const entry of entries){
   const b=document.createElement('button');b.className='base-unit-vehicle';b.setAttribute('aria-label',entry.name);b.setAttribute('aria-disabled',String(!entry.type));b.title=entry.type?entry.name:entry.name+' · unit preview';
   const im=document.createElement('img');im.src='assets/menu/units/'+entry.id+'.png';im.dataset.still=im.getAttribute('src');im.dataset.animation='assets/menu/units/'+entry.id+'.webp';im.alt='';b.append(im);b.onpointerenter=()=>{stopBaseUnitAnimations();im.src=im.dataset.animation;describeBaseUnit(entry);};b.onpointerleave=()=>im.src=im.dataset.still;
@@ -754,7 +752,7 @@ function refreshBaseUnitMenu(u){
  while(grid.children.length%4){const empty=document.createElement('div');empty.className='base-unit-empty';empty.setAttribute('aria-hidden','true');grid.append(empty);}
  if(entries.length)describeBaseUnit(entries[0]);
 }
-function openBaseUnitMenu(u,kind='ground'){baseUnitId=u.id;baseUnitKind=kind;baseUnitMenu.dataset.kind=kind;baseUnitMenu.hidden=false;refreshBaseUnitMenu(u);placeBaseUnitMenu(u);baseUnitMenu.setAttribute('aria-label',(u.type==='airbase'?'Airbase':'Military base')+' production menu');scheduleHideBaseHover();}
+function openBaseUnitMenu(u,kind='ground'){baseUnitId=u.id;baseUnitKind=kind;baseUnitMenu.dataset.kind=kind;baseUnitMenu.hidden=false;refreshBaseUnitMenu(u);placeBaseUnitMenu(u);baseUnitMenu.setAttribute('aria-label',TYPES[u.type].name+' production menu');scheduleHideBaseHover();}
 $('base-unit-close').onclick=closeBaseUnitMenu;
 // Main-base hover uses the entrance hotspot; other building zones stay independent.
 const baseUnitPriorMove=canvas.onpointermove;
@@ -1102,7 +1100,7 @@ function updateDivisionMovement(dt){
 }
 // Solid base footprints for ground vehicles. The rendered terrain is wider
 // than the actual structures; use the central compound/wall footprint only.
-function groundBaseObstacles(){return units.filter(b=>b.hp>0&&!TYPES[b.type].speed).map(b=>({x:b.x,y:b.y,rx:b.type==='airbase'?590:570,ry:b.type==='airbase'?205:190}));}
+function groundBaseObstacles(){return mapTerrain.cliffs.map(c=>({x:c.x,y:c.y,rx:460,ry:130})).concat(units.filter(b=>b.hp>0&&!TYPES[b.type].speed).map(b=>({x:b.x,y:b.y,rx:b.type==='airbase'?590:570,ry:b.type==='airbase'?205:190})));}
 function segmentHitsBase(a,b,o){
  const dx=b.x-a.x,dy=b.y-a.y,px=a.x-o.x,py=a.y-o.y;
  const A=dx*dx/(o.rx*o.rx)+dy*dy/(o.ry*o.ry);
@@ -1321,6 +1319,7 @@ function updateDivisionCombat(dt){
  for(const g of groups){syncGroupHealthCapacity(g);g.firing=g.members.some(u=>combatClock-(combatFiredAt.get(u)??-Infinity)<1);g.moving=g.members.some(u=>!!u.target||(u.moveSpeed??0)>1);}
  for(const g of groups){
   liveKeys.add(g.key);const cooldown=Math.max(0,(combatCooldowns.get(g.key)??0)-dt);combatCooldowns.set(g.key,cooldown);
+  if(g.team===3&&g.members[0].generatedBase)continue;
   if(!(COMBAT_STATS[g.type]?.firepower??TYPES[g.type].damage))continue;
   const baseVictim=!TYPES[g.type].speed?baseTargetUnit(g,groups):null;
   let target=baseVictim?groups.find(other=>other.members.includes(baseVictim)):null,best=Infinity,priority=-1;
@@ -1489,4 +1488,22 @@ function applyAttackerVolley(group,amount,attackerKey){
 function drawGroupHealth(members,x,y){
  const h=groupHealthSummary(members);ctx.save();ctx.fillStyle='#152014';ctx.fillRect(x-42,y+6,84,4);ctx.fillStyle=troopRelationColor(members[0].team);ctx.fillRect(x-42,y+6,84*Math.max(0,Math.min(1,h.health/h.maximum)),4);
  ctx.font='10px Tahoma,Arial,sans-serif';ctx.lineWidth=2;const text=Math.ceil(h.health)+' / '+Math.ceil(h.maximum)+' HP';ctx.strokeStyle='#000';ctx.strokeText(text,x,y+22);ctx.fillStyle=troopRelationColor(members[0].team);ctx.fillText(text,x,y+22);ctx.restore();
+}
+
+// Native Pi-style cliff rows and seeded base placement. DW5 supplies both
+// layouts from its server; the random selection here belongs to APEX.
+let mapTerrain={cliffs:[],bases:[]};
+const cliffMask=new Image(),cliffArt=[];
+cliffMask.src='assets/i/cliff-mask.png';
+function prepareCliffs(){if(!cliffMask.complete||!cliffMask.naturalWidth)return;for(const im of cliffArt){if(!im.complete||!im.naturalWidth)continue;const c=document.createElement('canvas');c.width=1200;c.height=400;const g=c.getContext('2d');g.drawImage(im,0,0,1200,400);g.globalCompositeOperation='xor';g.drawImage(cliffMask,0,0,1200,400);im.masked=c;}}
+cliffMask.onload=prepareCliffs;
+for(let i=0;i<5;i++){const im=new Image();cliffArt.push(im);im.onload=prepareCliffs;im.src='assets/i/hinder'+i+'.jpg';}
+function drawMapCliffs(){ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);ctx.beginPath();ctx.rect(0,0,WORLD_WIDTH,WORLD_HEIGHT);ctx.clip();for(const c of mapTerrain.cliffs){if(Math.abs(c.x-cam.x)>W/(2*zoom)+600||Math.abs(c.y-cam.y)>H/(2*zoom)+200)continue;const im=cliffArt[c.variant]?.masked;if(im)ctx.drawImage(im,c.x-600,c.y-200);}ctx.restore();}
+function generateWorldMap(nextSeed=true){
+ if(nextSeed){riverSeed=(riverSeed+1)>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));importedRiverSegments=[];localStorage.removeItem('apexDw5River');generateDw5StyleRivers();}
+ const terrain=Dw5World.generate(riverSeed,WORLD_WIDTH,WORLD_HEIGHT,activeRiverPieces());
+ mapTerrain=terrain;units=[];selected.clear();shots=[];deathEffects.length=0;divisionMotion.clear();
+ for(const b of terrain.bases){add(b.type,b.x,b.y,b.index===0?0:3);Object.assign(units.at(-1),{generatedBase:true,mapBaseId:b.index+1,playerName:b.index===0?'Player':'Unclaimed'});}
+ cam={x:terrain.bases[0].x,y:terrain.bases[0].y};zoom=.65;
+ notice('500 bases · 4 airbases · 20 helicopter bases · '+activeRiverPieces().filter(p=>p.type>=16).length+' bridges · seed '+riverSeed);
 }
