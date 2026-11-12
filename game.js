@@ -90,7 +90,7 @@ function demo(){units=[];selected.clear();shots=[];deathEffects.length=0;add('ai
 $('blue').onclick=()=>setTeam(0);$('red').onclick=()=>setTeam(1);$('ally').onclick=()=>setTeam(2);function setTeam(t){team=t;$('blue').classList.toggle('active',t===0);$('red').classList.toggle('active',t===1);$('ally').classList.toggle('active',t===2)}
 $('select').onclick=()=>setTool('select');function togglePause(){paused=!paused;$('pause').textContent=paused?'▶ Resume':'Ⅱ Pause'}$('pause').onclick=togglePause;$('speed').onchange=e=>speed=+e.target.value;$('reset').onclick=()=>{if(confirm('Replace the current battlefield with the demo?'))demo()};$('clear').onclick=()=>{if(confirm('Clear all troops and bases?')){units=[];selected.clear();notice('Empty battlefield ready. Choose a unit to deploy.')}};
 $('save').onclick=()=>{try{localStorage.setItem('apex-sandbox-v1',JSON.stringify({units,cam,zoom,uid,mapSeed:riverSeed}));notice('Scenario saved in this browser.')}catch{notice('Could not save: browser storage is unavailable.')}};
-$('load').onclick=()=>{try{let s=JSON.parse(localStorage.getItem('apex-sandbox-v1'));if(!s||!Array.isArray(s.units))return notice('No saved scenario in this browser.');if(Number.isFinite(s.mapSeed)){riverSeed=s.mapSeed>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));importedRiverSegments=[];localStorage.removeItem('apexDw5River');generateDw5StyleRivers();mapTerrain=Dw5World.generate(riverSeed,WORLD_WIDTH,WORLD_HEIGHT,activeRiverPieces());}units=s.units;repairTroopGroups();cam=s.cam;zoom=s.zoom;uid=s.uid;selected.clear();shots=[];notice('Saved scenario loaded.')}catch{notice('Could not load the saved scenario.')}};
+$('load').onclick=()=>{try{let s=JSON.parse(localStorage.getItem('apex-sandbox-v1'));if(!s||!Array.isArray(s.units))return notice('No saved scenario in this browser.');if(Number.isFinite(s.mapSeed)){riverSeed=s.mapSeed>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));importedRiverSegments=[];localStorage.removeItem('apexDw5River');generateDw5StyleRivers();mapTerrain=Dw5World.generate(riverSeed,WORLD_WIDTH,WORLD_HEIGHT,activeRiverPieces());}units=s.units;for(const u of units)if(u.generatedBase&&u.team===3){u.team=1;u.playerName='Opponent';}repairTroopGroups();cam=s.cam;zoom=s.zoom;uid=s.uid;selected.clear();shots=[];notice('Saved scenario loaded.')}catch{notice('Could not load the saved scenario.')}};
 $('home').onclick=()=>{cam={x:WORLD_WIDTH/2,y:WORLD_HEIGHT/2};zoom=Math.min((W-80)/WORLD_WIDTH,(H-80)/WORLD_HEIGHT)};$('zin').onclick=()=>zoom=Math.min(2,zoom*1.2);$('zout').onclick=()=>zoom=Math.max(.005,zoom/1.2);
 function resize(){W=canvas.clientWidth;H=canvas.clientHeight;canvas.width=W*devicePixelRatio;canvas.height=H*devicePixelRatio}new ResizeObserver(resize).observe(canvas);
 function world(p){return{x:(p.x-W/2)/zoom+cam.x,y:(p.y-H/2)/zoom+cam.y}}function pos(e){let r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
@@ -1305,13 +1305,15 @@ function animateTroopMissiles(group,victim,dt){
 }
 function updateDivisionCombat(dt){
  combatClock+=dt;for(const e of deathEffects)e.age+=dt;for(let i=deathEffects.length-1;i>=0;i--)if(deathEffects[i].age>=deathEffects[i].duration)deathEffects.splice(i,1);for(const u of units)u.casualtyCooldown=Math.max(0,(Number(u.casualtyCooldown)||0)-dt);shots.forEach(s=>s.life-=dt);shots=shots.filter(s=>s.life>0);
- const groups=combatGroups(),damage=[],liveKeys=new Set();
+ const groups=combatGroups(),mobileGroups=groups.filter(g=>TYPES[g.type].speed),damage=[],liveKeys=new Set();
  for(const g of groups){syncGroupHealthCapacity(g);g.firing=g.members.some(u=>combatClock-(combatFiredAt.get(u)??-Infinity)<1);g.moving=g.members.some(u=>!!u.target||(u.moveSpeed??0)>1);}
  for(const g of groups){
   liveKeys.add(g.key);const cooldown=Math.max(0,(combatCooldowns.get(g.key)??0)-dt);combatCooldowns.set(g.key,cooldown);
   if(g.team===3&&g.members[0].generatedBase)continue;
+  if(!TYPES[g.type].speed&&!mobileGroups.length)continue;
   if(!(COMBAT_STATS[g.type]?.firepower??TYPES[g.type].damage))continue;
-  const baseVictim=!TYPES[g.type].speed?baseTargetUnit(g,groups):null;
+  const baseVictim=!TYPES[g.type].speed?baseTargetUnit(g,mobileGroups):null;
+  if(!TYPES[g.type].speed&&!baseVictim){animateBaseMissiles(g.members[0],null,dt);continue;}
   let target=baseVictim?groups.find(other=>other.members.includes(baseVictim)):null,best=Infinity,priority=-1;
   for(const other of groups){
    if(friendlyTeams(g.team,other.team))continue;
@@ -1493,7 +1495,7 @@ function generateWorldMap(nextSeed=true){
  if(nextSeed){riverSeed=(riverSeed+1)>>>0;localStorage.setItem('apexRiverSeed',String(riverSeed));importedRiverSegments=[];localStorage.removeItem('apexDw5River');generateDw5StyleRivers();}
  const terrain=Dw5World.generate(riverSeed,WORLD_WIDTH,WORLD_HEIGHT,activeRiverPieces());
  mapTerrain=terrain;units=[];selected.clear();shots=[];deathEffects.length=0;divisionMotion.clear();
- for(const b of terrain.bases){add(b.type,b.x,b.y,b.index===0?0:3);Object.assign(units.at(-1),{generatedBase:true,mapBaseId:b.index+1,playerName:b.index===0?'Player':'Unclaimed'});}
+ for(const b of terrain.bases){add(b.type,b.x,b.y,b.team);Object.assign(units.at(-1),{generatedBase:true,mapBaseId:b.index+1,playerName:b.team===0?'Player':'Opponent'});}
  cam={x:terrain.bases[0].x,y:terrain.bases[0].y};zoom=.65;
  notice('500 bases · 4 airbases · 20 helicopter bases · '+activeRiverPieces().filter(p=>p.type>=16).length+' bridges · seed '+riverSeed);
 }

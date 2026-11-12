@@ -1,3 +1,9 @@
+v1.17.5 - Larger minimap and enemy ownership
+- Enlarged minimap to 400px where screen space permits, with larger base symbols and troop dots.
+- Generated opposing bases now belong to the enemy team and display red flags/markers.
+- Loading older saved generated maps converts unclaimed opposing bases to enemies.
+- Base combat targets troop groups only; empty maps skip idle base targeting.
+
 v1.17.4 - Corner minimap and camera tracking
 - Added gold camera crosshair and visible-area rectangle that follow pan/zoom.
 - Own bases/troops green, enemies red, allies blue; retained base-type strokes.

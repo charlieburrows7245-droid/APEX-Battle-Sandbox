@@ -151,11 +151,11 @@ header{height:46px;padding:0 12px;background:#161b18eF}.brand{font-size:17px}.br
 #factory-hover-menu{transform:none}#factory-hover-icons img{width:60px;height:40px;object-fit:contain}#factory-hover-icons .factory-hours-label{top:8px;font:bold 20px/22px Tahoma,Arial,sans-serif;text-shadow:2px 2px 1px #000,-1px -1px 1px #000}
 
 /* Larger square overview with sharp, readable base symbols. */
-#mini{width:min(300px,36vw,40vh);height:min(300px,36vw,40vh);background:#000;image-rendering:pixelated;border:1px solid #8d927e}
+#mini{width:min(400px,45vw,48vh);height:min(400px,45vw,48vh);background:#000;image-rendering:pixelated;border:1px solid #8d927e}
 
 #mini{border:1px solid #5c665c;box-shadow:0 3px 14px #0008}
 
 /* Flush corner overlay with a solid black canvas. */
 #mini{top:0;right:0;bottom:auto;margin:0;border:0;box-shadow:none;background:#000}
 
-.maptools{right:calc(min(300px,36vw,40vh) + 12px)}
+.maptools{right:calc(min(400px,45vw,48vh) + 12px)}

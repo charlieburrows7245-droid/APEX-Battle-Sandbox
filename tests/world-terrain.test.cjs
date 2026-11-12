@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),world=require('../world-terrain.js'),rivers=require('../river-terrain.js');
 for(let seed=0;seed<50;seed++){
  const route=rivers.seededLayout(seed,108000,108000)[0],river=rivers.decodeLayout(route.encoded,route.startX,route.startY),map=world.generate(seed,108000,108000,river);
- assert.equal(map.bases.length,500);assert.equal(map.bases.filter(b=>b.type==='airbase').length,4);assert.equal(map.bases.filter(b=>b.type==='helibase').length,20);assert.equal(map.bases.filter(b=>b.type==='base').length,476);assert.equal(map.cliffs.length,600);
+ assert.equal(map.bases.length,500);assert.equal(map.bases.filter(b=>b.team===0).length,1);assert.equal(map.bases.filter(b=>b.team===1).length,499);assert.equal(map.bases.filter(b=>b.type==='airbase').length,4);assert.equal(map.bases.filter(b=>b.type==='helibase').length,20);assert.equal(map.bases.filter(b=>b.type==='base').length,476);assert.equal(map.cliffs.length,600);
  for(const b of map.bases){assert(b.x-750>=9000&&b.x+750<=99000&&b.y-250>=9000&&b.y+250<=99000);assert(!map.cliffs.some(c=>Math.abs(c.x-b.x)<1450&&Math.abs(c.y-b.y)<600),'base avoids cliffs');assert(!river.some(p=>Math.abs(p.x-b.x)<2000&&Math.abs(p.y-b.y)<1000),'base avoids river');assert(!map.bases.some(c=>b.index!==c.index&&Math.abs(c.x-b.x)<2200&&Math.abs(c.y-b.y)<950),'base footprints separated');}
  assert.deepEqual(map,world.generate(seed,108000,108000,river));
 }

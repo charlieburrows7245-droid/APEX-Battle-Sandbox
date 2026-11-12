@@ -5,10 +5,10 @@ draw(c,300,300,1200,1200,units,[],[{x1:0,y1:600,x2:1200,y2:600}],[],{x:600,y:400
 assert(calls.some(x=>x[0]==='clearRect'),'clears previous camera and troop markers before repaint');assert(calls.some(x=>x[0]==='fillStyle'&&x[1]==='#000'));
 assert.equal(calls.filter(x=>x[0]==='fillRect').length,4,'background and three base squares');
 assert.equal(calls.filter(x=>x[0]==='arc').length,1,'one living troop dot');
-assert(calls.some(x=>x[0]==='arc'&&x[1]===50&&x[2]===50&&x[3]===1.1));
+assert(calls.some(x=>x[0]==='arc'&&x[1]===50&&x[2]===50&&x[3]===1.4));
 for(const color of ['#65ff38','#ff3535','#3d8dff'])assert(calls.some(x=>x[0]==='fillStyle'&&x[1]===color),'team colour');
-assert(calls.some(x=>x[0]==='moveTo'&&x[1]===96&&x[2]===100));assert(calls.some(x=>x[0]==='lineTo'&&x[1]===104&&x[2]===100),'horizontal airbase');
-assert(calls.some(x=>x[0]==='moveTo'&&x[1]===200&&x[2]===196));assert(calls.some(x=>x[0]==='lineTo'&&x[1]===200&&x[2]===204),'vertical helicopter base');
+assert(calls.some(x=>x[0]==='moveTo'&&x[1]===95&&x[2]===100));assert(calls.some(x=>x[0]==='lineTo'&&x[1]===105&&x[2]===100),'horizontal airbase');
+assert(calls.some(x=>x[0]==='moveTo'&&x[1]===200&&x[2]===195));assert(calls.some(x=>x[0]==='lineTo'&&x[1]===200&&x[2]===205),'vertical helicopter base');
 assert(calls.some(x=>x[0]==='lineTo'&&x[1]===300&&x[2]===150),'highway segment');
 assert(calls.some(x=>x[0]==='strokeRect'&&x[1]===120&&x[2]===85&&x[3]===60&&x[4]===30),'camera viewport at current position and zoom');
 assert(calls.some(x=>x[0]==='moveTo'&&x[1]===150&&x[2]===0),'camera crosshair');

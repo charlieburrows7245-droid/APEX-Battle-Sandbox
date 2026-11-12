@@ -28,7 +28,7 @@
     point={x,y};break;
    }
    if(!point)throw Error('Unable to place all 500 bases without terrain overlap.');
-   bases.push({...point,index,type:index>=496?'airbase':index>=476?'helibase':'base'});
+   bases.push({...point,index,team:index===0?0:1,type:index>=496?'airbase':index>=476?'helibase':'base'});
   }
   return{cliffs,bases};
  }

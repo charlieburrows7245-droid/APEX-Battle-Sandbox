@@ -15,7 +15,7 @@ Validation: `node tests/rivers.test.cjs`; production, unit stats and base range 
 
 ## Full maps (1.17.0)
 
-APEX generates exactly 500 bases: 476 military, 20 helicopter, 4 airbases. The helicopter/airbase mix was decoded from the supplied awversion=5 BR snapshot (orientation 2/3). DW5 reserves 500 base slots, including an index-zero sentinel; this is evidence for the captured mix, not a guarantee of every server map. The requested APEX total is 500 actual bases. One military base starts owned; others are unclaimed. No capture system is added by this change.
+APEX generates exactly 500 bases: 476 military, 20 helicopter, 4 airbases. The helicopter/airbase mix was decoded from the supplied awversion=5 BR snapshot (orientation 2/3). DW5 reserves 500 base slots, including an index-zero sentinel; this is evidence for the captured mix, not a guarantee of every server map. The requested APEX total is 500 actual bases. One military base starts owned; the other 499 are enemies as of version 1.17.5. No capture system is added by this change.
 
 The client renders 600 Pi bytes as alternating native hinder0..4 cliff images, through the native XOR alpha mask. APEX uses the same five images, mask, byte-quantized horizontal positions and stratified rows, adapting the vertical scale to the existing square map. Cliff collision uses elliptical footprints shared with ground obstacle avoidance; aircraft ignore these ground obstacles. Base placement rejects overlaps with cliffs, river corridors and existing bases.
 
