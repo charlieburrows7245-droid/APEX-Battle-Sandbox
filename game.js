@@ -641,8 +641,14 @@ function turnToward(angle,target,step){const d=Math.atan2(Math.sin(target-angle)
 function advanceTroopAnimation(state,u,dt,random=Math.random){dt=Math.min(.1,Math.max(0,dt));state.time+=dt;const moving=!!u.target,oldBody=state.body;const attacking=Number.isFinite(u.aimAngle)&&last<(u.aimUntil??0);const air=!!nativeTroops[u.type].air;
 // Aircraft have no independent turret: visually face their current enemy while firing.
 // Ground vehicles keep their moving hull direction and turn only the weapon layer.
-const bodyGoal=air&&attacking?u.aimAngle:u.angle;
-state.body=air&&attacking?turnToward(state.body,bodyGoal,dt*3):moving?u.angle:turnToward(state.body,bodyGoal,dt*3);
+// Face the actual direction of travel, including obstacle detours.
+// The formation anchor's heading is used when a member barely moves.
+const travelDx=u.x-(state.lastX??u.x),travelDy=(u.y-(state.lastY??u.y))*3;
+state.lastX=u.x;state.lastY=u.y;
+const actuallyTravelling=moving&&Math.hypot(travelDx,travelDy)>.08;
+const travelHeading=actuallyTravelling?Math.atan2(travelDy,travelDx):u.formationOrder&&moving?divisionMotion.get(u.groupId)?.travelAngle:u.angle;
+const bodyGoal=air&&attacking?u.aimAngle:(Number.isFinite(travelHeading)?travelHeading:u.angle);
+state.body=turnToward(state.body,bodyGoal,dt*(moving?7:3));
 state.idleAim+=Math.atan2(Math.sin(state.body-oldBody),Math.cos(state.body-oldBody));state.idleClock+=dt;while(state.idleClock>=.05){state.idleClock-=.05;if(!air&&random()<.02)state.idleAim=state.body+(random()-.5)*Math.PI*5/18;}
 const goal=attacking?u.aimAngle:air?state.body:state.idleAim;
 state.turret=turnToward(state.turret,goal,dt*(attacking?3:1.5));state.moving=moving;return state;}
