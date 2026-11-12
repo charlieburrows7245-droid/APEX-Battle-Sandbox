@@ -1,3 +1,10 @@
+v1.17.4 - Corner minimap and camera tracking
+- Added gold camera crosshair and visible-area rectangle that follow pan/zoom.
+- Own bases/troops green, enemies red, allies blue; retained base-type strokes.
+- Troops appear as smaller circular dots.
+- Minimap attaches flush to the top-right corner with no frame or shadow and an opaque black background.
+- Unclaimed base flags use blue consistently with their minimap markers.
+
 v1.17.3 - Base border buffer and minimap polish
 - All generated base footprints stay at least 100 map units inside every edge.
 - Replaced beige unclaimed markers with DW5-style blue; retained clear airbase and helicopter symbols.

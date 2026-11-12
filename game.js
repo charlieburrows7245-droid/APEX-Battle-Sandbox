@@ -656,7 +656,7 @@ drawDeathEffects();for(const u of units)if(TYPES[u.type].speed&&visible(u))drawT
    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+ux*13,y+uy*13);ctx.stroke();
    ctx.restore();
   }else{ctx.strokeStyle='#ffe9a1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.tx,s.ty);ctx.stroke();}
- }ctx.restore();if(drag?.kind==='select'){ctx.fillStyle='#c7e88722';ctx.strokeStyle='#c7e887';let a=drag.start,b=drag.end;ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y)}if(now-lastMini>=100){lastMini=now;ApexMinimap.draw(mc,mini.width,mini.height,WORLD_WIDTH,WORLD_HEIGHT,units,activeRiverPieces(),mapTerrain.highways??[],colors);}if(now-statsTimer>150){for(const u of units)if(u.production?.endsAt&&u.production.endsAt<=Date.now())delete u.production;const coordinate=mapCoordinates(world(mouse));$('coordinates').textContent=coordinate.x+','+coordinate.y;$('status').textContent=`${paused?'PAUSED':'SIMULATION LIVE'}  ·  YOURS ${units.filter(u=>u.team===0).length} / ALLY ${units.filter(u=>u.team===2).length} / ENEMY ${units.filter(u=>u.team===1).length}  ·  ${Math.round(zoom*100)}%`;$('selection').textContent=selected.size?selected.size+' SELECTED · DELETE TO REMOVE':'NO UNITS SELECTED';statsTimer=now}syncBaseMenuPositions();requestAnimationFrame(frame)}resize();requestAnimationFrame(()=>{generateWorldMap(false);requestAnimationFrame(frame);});
+ }ctx.restore();if(drag?.kind==='select'){ctx.fillStyle='#c7e88722';ctx.strokeStyle='#c7e887';let a=drag.start,b=drag.end;ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y)}if(now-lastMini>=100){lastMini=now;ApexMinimap.draw(mc,mini.width,mini.height,WORLD_WIDTH,WORLD_HEIGHT,units,activeRiverPieces(),mapTerrain.highways??[],colors,{x:cam.x,y:cam.y,width:W/zoom,height:H/zoom});}if(now-statsTimer>150){for(const u of units)if(u.production?.endsAt&&u.production.endsAt<=Date.now())delete u.production;const coordinate=mapCoordinates(world(mouse));$('coordinates').textContent=coordinate.x+','+coordinate.y;$('status').textContent=`${paused?'PAUSED':'SIMULATION LIVE'}  ·  YOURS ${units.filter(u=>u.team===0).length} / ALLY ${units.filter(u=>u.team===2).length} / ENEMY ${units.filter(u=>u.team===1).length}  ·  ${Math.round(zoom*100)}%`;$('selection').textContent=selected.size?selected.size+' SELECTED · DELETE TO REMOVE':'NO UNITS SELECTED';statsTimer=now}syncBaseMenuPositions();requestAnimationFrame(frame)}resize();requestAnimationFrame(()=>{generateWorldMap(false);requestAnimationFrame(frame);});
 
 $('editor-toggle').onclick=()=>{const collapsed=document.body.classList.toggle('editor-hidden');$('editor-toggle').textContent=collapsed?'☰ Sandbox editor':'✕ Close editor';$('editor-toggle').setAttribute('aria-expanded',String(!collapsed))};
 
@@ -1165,7 +1165,7 @@ function moveTroopWithDrift(u,t,dt){
 }
 
 
-function baseFlagAsset(u){return u.team===PLAYER_TEAM?'flaggeg.png':friendlyTeams(u.team,PLAYER_TEAM)?'flaggeb.png':'flagger.png';}
+function baseFlagAsset(u){return u.team===PLAYER_TEAM?'flaggeg.png':(u.team===3||friendlyTeams(u.team,PLAYER_TEAM))?'flaggeb.png':'flagger.png';}
 function drawBaseFlag(u){const entrance=baseEntrancePoint(u),air=u.type==='airbase',x=entrance.x+(air?6:20),y=entrance.y+(air?7:10),frame=Math.floor(last/100)%34,pole=dwArt['flagget.png'];if(pole?.complete&&pole.naturalWidth)ctx.drawImage(pole,x-15,y-15);spriteFrame(dwArt['flagges.png'],frame,x-20,y+60,34);spriteFrame(dwArt[baseFlagAsset(u)],frame,x,y,34);}
 
 // DW5 help.deltawars.com/?a=units: range, normal/special firepower and armour.
