@@ -4,6 +4,9 @@ let ctx=canvas.getContext('2d',{alpha:false});
 const MAP_LIMIT=1200,MAP_STEP_X=90,MAP_STEP_Y=90,WORLD_WIDTH=MAP_LIMIT*MAP_STEP_X,WORLD_HEIGHT=MAP_LIMIT*MAP_STEP_Y;
 function mapCoordinates(p){return{x:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.x/MAP_STEP_X))),y:Math.max(0,Math.min(MAP_LIMIT,Math.floor(p.y/MAP_STEP_Y)))}}
 const TYPES={tank:{name:'Type 99',icon:'▰',speed:150,dw5Speed:2,range:165,damage:19,hp:160},aa:{name:'TanSAM',icon:'▤',speed:75,dw5Speed:1,range:240,damage:15,hp:110},heli:{name:'Apache',icon:'✣',speed:112,range:180,damage:16,hp:100},jet:{name:'J-10',icon:'✈',speed:170,range:210,damage:22,hp:100},raptor:{name:'F-22C Raptor',icon:'✈',speed:8*75,range:12*90,damage:50,hp:65000},base:{name:'Military base',icon:'▦',speed:0,range:210,damage:12,hp:1000},airbase:{name:'Airbase',icon:'⊞',speed:0,range:210,damage:12,hp:800}};
+
+// All catalogue entries are buildable; new unit combat values use sandbox class defaults.
+for(const entry of DW5_MENU_UNITS){if(!TYPES[entry.type])TYPES[entry.type]={name:entry.name,icon:entry.air?'✈':'▰',speed:entry.air?170:150,range:entry.air?1080:720,damage:/jammer|Detector|AWAC/i.test(entry.name)?0:19,hp:entry.air?100:160};}
 let units=[],selected=new Set(),team=0,tool='select',paused=false,speed=1,zoom=.65,cam={x:1200,y:800},W=0,H=0,drag=null,mouse={x:0,y:0},shots=[],uid=0,last=0,statsTimer=0;
 const colors=['#65ff38','#ff3535','#00cfff'];
 function notice(t){$('notice').textContent=t}
@@ -15,7 +18,7 @@ const GROUP_SIZE=49,PLAYER_TEAM=0;
 const DW5_FORMATION_X=[0,1,1,-1,-1,0,2,0,-2,2,2,-2,-2,1,1,-1,-1,3,3,-3,-3,0,4,0,-4,-3,3,-3,3,-4,4,-4,4,2,-2,-2,2,5,-5,5,-5,1,-1,-1,1,0,6,0,-6];
 const DW5_FORMATION_Y=[0,-1,1,1,-1,-2,0,2,0,-2,2,2,-2,-3,3,-3,3,-1,1,-1,1,-4,0,4,0,-3,3,3,-3,2,2,-2,-2,4,-4,4,-4,1,1,-1,-1,5,-5,5,-5,6,0,-6,0];
 let nextGroupId=0;
-function troopSpacing(type){return {tank:48,aa:55,heli:60,jet:85,raptor:85}[type]??48;}
+function troopSpacing(type){return {tank:48,aa:55,heli:60,jet:85,raptor:85}[type]??(TYPES[type]?.icon==='✈'?85:48);}
 function formationOffset(type,index){return{x:DW5_FORMATION_X[index%49]*troopSpacing(type),y:DW5_FORMATION_Y[index%49]*troopSpacing(type)/3};}
 function friendlyTeams(a,b){return a===b||(a===0&&b===2)||(a===2&&b===0);}
 function troopRelationColor(side){return side===PLAYER_TEAM?'#65ff38':friendlyTeams(side,PLAYER_TEAM)?'#00cfff':'#ff3535';}
@@ -24,7 +27,22 @@ function repairTroopGroups(){divisionMotion.clear();nextGroupId=units.reduce((ma
 function expandGroupSelection(){const ids=new Set(units.filter(u=>selected.has(u.id)&&TYPES[u.type].speed).map(u=>u.groupId));for(const u of units)if(TYPES[u.type].speed&&ids.has(u.groupId))selected.add(u.id);}
 function drawTroopGroupLabels(visible){ctx.save();ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.font='bold 12px Tahoma,Arial,sans-serif';for(const group of troopGroups()){if(!group.some(visible))continue;const x=group.reduce((sum,u)=>sum+u.x,0)/group.length,cy=group.reduce((sum,u)=>sum+u.y,0)/group.length,y=Math.min(...group.map(u=>u.y))-45;if(group.some(u=>selected.has(u.id))){const radius=Math.max(...group.map(u=>Math.abs(u.x-x)+3*Math.abs(u.y-cy)))+36;ctx.strokeStyle='#dde89b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-radius,cy);ctx.lineTo(x,cy-radius/3);ctx.lineTo(x+radius,cy);ctx.lineTo(x,cy+radius/3);ctx.closePath();ctx.stroke();}ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.9)';const first=group[0],owner=(first.playerName??BASE_PLAYER_NAMES[first.team]??'Player').toUpperCase(),label=group.length+' '+TYPES[first.type].name;ctx.strokeText(owner,x,y-12);ctx.strokeText(label,x,y);ctx.fillStyle=troopRelationColor(first.team);ctx.fillText(owner,x,y-12);ctx.fillText(label,x,y);}ctx.restore();}
 
-function spawn(type,x,y,side,count,originBase=null){if(!TYPES[type].speed){for(let i=0;i<count;i++)add(type,x,y,side);return;}let remaining=Math.max(0,Math.trunc(count));while(remaining){let members=originBase===null?null:troopGroups().find(g=>g.length+reservedJoinSlots(g[0].groupId).length<49&&!g[0].joinOrder&&g[0].type===type&&g[0].team===side&&g[0].originBase===originBase);const batch=originBase===null?Math.floor((count-remaining)/49):troopGroups().filter(g=>g[0].type===type&&g[0].team===side&&g[0].originBase===originBase).length,anchorX=x+(members?0:batch*troopSpacing(type)*14),id=members?.[0].groupId??++nextGroupId,amount=Math.min(remaining,49-(members?.length??0)-(members?reservedJoinSlots(members[0].groupId).length:0)),used=new Set([...(members??[]).map(u=>u.groupSlot),...(members?reservedJoinSlots(members[0].groupId):[])]);for(let i=0;i<amount;i++){let slot=0;while(used.has(slot))slot++;used.add(slot);const offset=formationOffset(type,slot),single=count===1;add(type,Math.max(0,Math.min(WORLD_WIDTH,(single?x:anchorX+offset.x))),Math.max(0,Math.min(WORLD_HEIGHT,y+(single?0:offset.y))),side);const u=units[units.length-1];Object.assign(u,{groupId:id,groupSlot:slot,originBase,rallyX:members?.[0].rallyX??anchorX,rallyY:members?.[0].rallyY??y});}remaining-=amount;}}
+function spawn(type,x,y,side,count,originBase=null){
+ if(!TYPES[type].speed){for(let i=0;i<count;i++)add(type,x,y,side);return;}
+ for(let i=0;i<Math.max(0,Math.trunc(count));i++){
+  const members=originBase===null?null:troopGroups().find(g=>g.length+reservedJoinSlots(g[0].groupId).length<GROUP_SIZE&&!g[0].joinOrder&&g[0].type===type&&g[0].team===side&&g[0].originBase===originBase);
+  if(members){
+   const used=new Set([...members.map(u=>u.groupSlot),...reservedJoinSlots(members[0].groupId)]);let slot=0;while(used.has(slot))slot++;
+   add(type,x,y,side);Object.assign(units[units.length-1],{groupId:++nextGroupId,groupSlot:0,originBase:null,joinOrder:{groupId:members[0].groupId,slot}});
+  }else{
+   const batch=Math.floor(i/GROUP_SIZE),slot=i%GROUP_SIZE,offset=formationOffset(type,slot);
+   const id=originBase!==null||slot===0?++nextGroupId:units[units.length-1].groupId;
+   const ax=x+batch*troopSpacing(type)*14;
+   add(type,Math.max(0,Math.min(WORLD_WIDTH,ax+offset.x)),Math.max(0,Math.min(WORLD_HEIGHT,y+offset.y)),side);
+   Object.assign(units[units.length-1],{groupId:id,groupSlot:slot,originBase,rallyX:ax,rallyY:y});
+  }
+ }
+}
 function demo(){units=[];selected.clear();shots=[];deathEffects.length=0;add('airbase',1110,620,0);add('base',2050,1300,1);spawn('heli',850,1030,0,49);spawn('tank',650,1270,0,14);spawn('aa',1430,1110,0,7);spawn('heli',2110,700,1,7);cam={x:1110,y:690};zoom=1.1;notice('Raised airbase demo. Select troops and left-click ground to move. Right-drag to pan.');}
 $('blue').onclick=()=>setTeam(0);$('red').onclick=()=>setTeam(1);$('ally').onclick=()=>setTeam(2);function setTeam(t){team=t;$('blue').classList.toggle('active',t===0);$('red').classList.toggle('active',t===1);$('ally').classList.toggle('active',t===2)}
 $('select').onclick=()=>setTool('select');function togglePause(){paused=!paused;$('pause').textContent=paused?'▶ Resume':'Ⅱ Pause'}$('pause').onclick=togglePause;$('speed').onchange=e=>speed=+e.target.value;$('reset').onclick=()=>{if(confirm('Replace the current battlefield with the demo?'))demo()};$('clear').onclick=()=>{if(confirm('Clear all troops and bases?')){units=[];selected.clear();notice('Empty battlefield ready. Choose a unit to deploy.')}};
@@ -158,8 +176,9 @@ function actualBase(u){syncBaseDefenceHealth(u);
  ctx.drawImage(cached.surface,u.x-900,u.y-500);ctx.save();ctx.translate(u.x,u.y);drawStarterDefences(u,u.type==='airbase');ctx.restore();drawRotatingHeads(u);drawFactoryActivity(u);drawTurretHealthBars(u);
  if(selected.has(u.id)){ctx.save();ctx.translate(u.x,u.y);ctx.strokeStyle='#d8f38e';ctx.lineWidth=2/zoom;ctx.beginPath();ctx.ellipse(0,0,705,225,0,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#162013';ctx.fillRect(-50,-277,100,4);ctx.fillStyle=colors[u.team];ctx.fillRect(-50,-277,100*u.hp/baseMaxHealth(u),4);ctx.restore();}
 }
-const nativeTroops={tank:{id:27,raise:-9,pivot:2},aa:{id:43,raise:-13,pivot:12},heli:{id:13,air:true},jet:{id:58,air:true},raptor:{id:58,air:true}};
-const troopArt={};for(const def of Object.values(nativeTroops)){for(const layer of ['a','b']){const im=new Image();im.src='assets/gi/panzer'+def.id+layer+'.png';troopArt[def.id+layer]=im}}const apacheRotor=new Image();apacheRotor.src='assets/i/rotor4er.png';
+const nativeTroops={tank:{id:27,raise:-9,pivot:2},aa:{id:43,raise:-13,pivot:12},heli:{id:13,air:true},jet:{id:58,air:true},raptor:{id:37,air:true}};
+for(const entry of DW5_MENU_UNITS)nativeTroops[entry.type]??={id:entry.id,air:entry.air,raise:-9,pivot:2};
+const troopArt={};for(const def of Object.values(nativeTroops)){for(const layer of ['a','b']){if(layer==='b'&&[7,16,6,21,18].includes(def.id))continue;const im=new Image();im.src='assets/gi/panzer'+def.id+layer+'.png';troopArt[def.id+layer]=im}}const apacheRotor=new Image();apacheRotor.src='assets/i/rotor4er.png';
 function spriteFrame(im,frame,x,y,count=72){if(!im?.complete||!im.naturalWidth)return;const fw=im.naturalWidth/count;ctx.drawImage(im,fw*frame,0,fw,im.naturalHeight,x-fw/2,y-im.naturalHeight/2,fw,im.naturalHeight)}
 // Player labels are drawn separately from cached base artwork, so they remain
 // readable at different zoom levels without invalidating factory/base caches.
@@ -199,7 +218,7 @@ const productionIcons=new Map();function productionIcon(id){if(id==null)return n
 function drawBaseProduction(u){
  if(!u.buildQueue?.length)return;
  const queued=u.buildQueue[0],type=typeof queued==='string'?queued:queued.type,entry=typeof queued==='string'?null:queued;
- const air=type==='heli'||type==='jet';
+ const air=!!nativeTroops[type]?.air;
  const x=u.x+(u.type==='airbase'?(air?195:395):350),y=u.y+(u.type==='airbase'?(air?-170:25):12);
  const remaining=Math.max(0,Math.ceil(3-(u.buildTimer??0)));
  ctx.save();ctx.translate(x,y);
@@ -316,7 +335,7 @@ function drawTargetUnitHealth(u){
  if(ratio>0){ctx.strokeStyle='#00dd00';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+width*ratio,y);ctx.stroke();} // Remaining health
  ctx.restore();
 }
-function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=type==='heli'||type==='jet';const x=base.x+(base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced){const offset=formationOffset(type,produced.groupSlot),exit=air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}updateDivisionMovement(dt);for(const u of units){const t=TYPES[u.type];if(u.formationOrder&&u.target){const error=Math.hypot(u.target.x-u.x,3*(u.target.y-u.y));const boost=1+Math.min(.55,Math.max(0,(error-troopSpacing(u.type)*.5)/Math.max(1,troopSpacing(u.type)*5)));moveTroopWithDrift(u,{...t,speed:t.speed*boost},dt);}else moveTroopWithDrift(u,t,dt);}updateDivisionCombat(dt);updatePendingGroupJoins();}
+function update(dt){updatePendingGroupJoins();for(const base of [...units]){if(base.buildQueue?.length){base.buildTimer=(base.buildTimer??0)+dt;while(base.buildTimer>=3&&base.buildQueue.length){base.buildTimer-=3;const queued=base.buildQueue.shift(),type=typeof queued==='string'?queued:queued.type;if(!TYPES[type])continue;const air=!!nativeTroops[type]?.air;const x=base.x+(base.type==='airbase'?(air?200:425):425),y=base.y+(base.type==='airbase'?(air?-210:113):92);const previousCount=units.length;spawn(type,x,y,base.team,1,base.id);const produced=units[previousCount];if(produced&&!produced.joinOrder){const offset=formationOffset(type,produced.groupSlot),exit=air?{x:produced.rallyX-115+offset.x,y:produced.rallyY+110+offset.y}:{x:produced.rallyX+145+offset.x,y:produced.rallyY+105+offset.y};produced.target={x:Math.max(0,Math.min(WORLD_WIDTH,exit.x)),y:Math.max(0,Math.min(WORLD_HEIGHT,exit.y))};}}if(!base.buildQueue.length)base.buildTimer=0;}}updateDivisionMovement(dt);for(const u of units){const t=TYPES[u.type];if(u.formationOrder&&u.target){const error=Math.hypot(u.target.x-u.x,3*(u.target.y-u.y));const boost=1+Math.min(.55,Math.max(0,(error-troopSpacing(u.type)*.5)/Math.max(1,troopSpacing(u.type)*5)));moveTroopWithDrift(u,{...t,speed:t.speed*boost},dt);}else moveTroopWithDrift(u,t,dt);}updateDivisionCombat(dt);updatePendingGroupJoins();}
 // DW5 Xo(): seven position-hashed ground tiles, 850px columns,
 // 280px rows, odd rows offset by -400px; even rows are painted first.
 function groundVariant(x,y){let g=314159265+x*y;for(let i=0;i<2;i++){g^=g<<13;g^=g<<17;g^=g<<5;}return Math.abs(g)%7;}
@@ -437,7 +456,7 @@ function placeBaseUnitMenu(u){
 }
 function describeBaseUnit(entry){
  $('base-unit-title').textContent=entry.name;$('base-unit-description').textContent=entry.description||'';$('base-unit-detail').textContent=entry.detail||'';
- const seconds=entry.seconds||0,minutes=Math.floor(seconds/60),remainder=seconds%60;$('base-unit-time').textContent=seconds?(minutes?minutes+'min'+(remainder?' '+remainder+'sec':''):seconds+'sec'):'';$('base-unit-cost').textContent=entry.steel?'Steel '+entry.steel.toLocaleString('en-US'):'';$('base-unit-carbon').textContent=entry.carbon?'Carbon '+entry.carbon.toLocaleString('en-US'):'';
+ const seconds=entry.type?3:(entry.seconds||0),minutes=Math.floor(seconds/60),remainder=seconds%60;$('base-unit-time').textContent=seconds?(minutes?minutes+'min'+(remainder?' '+remainder+'sec':''):seconds+'sec'):'';$('base-unit-cost').textContent=entry.steel?'Steel '+entry.steel.toLocaleString('en-US'):'';$('base-unit-carbon').textContent=entry.carbon?'Carbon '+entry.carbon.toLocaleString('en-US'):'';
 }
 function refreshBaseUnitMenu(u){
  const grid=$('base-unit-grid');grid.replaceChildren();
@@ -450,7 +469,7 @@ function refreshBaseUnitMenu(u){
   b.onpointerleave=()=>{if(im.dataset.still)im.src=im.dataset.still;};
   b.onclick=()=>{if(action.key==='queue'){notice(level?level+' units queued; each takes 3 seconds.':'Queue empty.');return;}if(maxed)return;if(action.key==='flak')upgradeBaseFlak(u);else if(action.key==='wall')u.wallLevel=level+1;else{u.specialUpgrades??={};u.specialUpgrades.range=true;}refreshBaseUnitMenu(u);placeBaseUnitMenu(u);};grid.append(b);
  }
- const entries=DW5_MENU_UNITS.filter(entry=>baseUnitKind==='aircraft'?entry.aircraftMenu:!entry.air);
+ const entries=DW5_MENU_UNITS.filter(entry=>baseUnitKind==='aircraft'?entry.aircraftMenu:!entry.air||entry.type==='heli');
  for(const entry of entries){
   const b=document.createElement('button');b.className='base-unit-vehicle';b.setAttribute('aria-label',entry.name);b.setAttribute('aria-disabled',String(!entry.type));b.title=entry.type?entry.name:entry.name+' · unit preview';
   const im=document.createElement('img');im.src='assets/menu/units/'+entry.id+'.png';im.dataset.still=im.getAttribute('src');im.dataset.animation='assets/menu/units/'+entry.id+'.webp';im.alt='';b.append(im);b.onpointerenter=()=>{stopBaseUnitAnimations();im.src=im.dataset.animation;describeBaseUnit(entry);};b.onpointerleave=()=>im.src=im.dataset.still;
@@ -583,7 +602,7 @@ function updateDivisionMovement(dt){
    motion={x:mid(anchors.map(p=>p.x)),y:mid(anchors.map(p=>p.y)),angle:heading,travelAngle:heading,moveSpeed:0,target:null};
    divisionMotion.set(id,motion);
   }
-  motion.target={x:order.x,y:order.y};
+  motion.type=type;motion.target={x:order.x,y:order.y};
   moveTroopWithDrift(motion,TYPES[type],dt);
   const heading=motion.angle;
   let settled=!motion.target;
@@ -649,7 +668,7 @@ function keepGroundOutsideBases(u,oldX,oldY,obstacles){
 }
 function moveTroopWithDrift(u,t,dt){
  if(!u.target||!t.speed){u.moveSpeed=0;u.baseDetour=null;return;}
- const obstacles=(u.type==='heli'||u.type==='jet'||u.type==='raptor')?[]:groundBaseObstacles();
+ const obstacles=nativeTroops[u.type]?.air?[]:groundBaseObstacles();
  // Fixed maximum step keeps steering and braking consistent across frame rates.
  for(let remaining=dt;remaining>0&&u.target;){
   const h=Math.min(remaining,1/120);remaining-=h;
@@ -689,6 +708,7 @@ const COMBAT_STATS={
  jet:{range:12,firepower:1000,armor:3000,sound:'cannon'},
  raptor:{range:12,sight:21,firepower:50,armor:15000,special:1250,sound:'cannon'}
 };
+for(const entry of DW5_MENU_UNITS)COMBAT_STATS[entry.type]??={range:entry.air?12:8,firepower:TYPES[entry.type].damage?1000:0,armor:entry.air?3000:107,sound:/missile|Patriot|Pantsir|MLRS|Smerch/i.test(entry.name)?'rak':'cannon'};
 let showWeaponRanges=true,combatClock=0;
 const combatCooldowns=new Map(),combatFiredAt=new WeakMap();
 // Track casualty limits by attacking division and defending division, not globally.

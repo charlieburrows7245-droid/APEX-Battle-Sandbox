@@ -1,3 +1,10 @@
+v1.14
+- All 36 production catalogue entries are buildable in three seconds using their native sprites.
+- Reinforcements travel as independent groups and merge only at their destination formation slot.
+- Reserved slots prevent overlapping arrivals and divisions exceeding 49 troops.
+- Aircraft use the air spawn/obstacle rules; Apache is available in the ground production menu.
+- Existing calibrated combat values remain; newly enabled types use provisional class defaults. Jammer/detector visibility abilities have no effect in this full-visibility sandbox.
+
 v0.75 - Factory menu icon refresh only
 - Factory upgrade button always displays the level-one factory artwork from the supplied DW5 screenshot.
 - Production buttons show the new 1h and 15h artwork from that screenshot.
