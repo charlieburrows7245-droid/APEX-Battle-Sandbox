@@ -552,7 +552,7 @@ function updateDivisionCombat(dt){
   if(!target)continue;
   for(const u of g.members){u.aimAngle=Math.atan2((target.y-u.y)*3,target.x-u.x);u.aimUntil=last+1000;}
   if(cooldown>0)continue;
-  combatCooldowns.set(g.key,.8);
+  combatCooldowns.set(g.key,CASUALTY_INTERVAL); // One volley per simulation second, aligned with casualty eligibility.
   const victim=target.members.reduce((a,b)=>(b.groupSlot??0)>(a.groupSlot??0)?b:a);
   const shooters=TYPES[g.type].speed?g.members:Array.from({length:baseGunCount(g.members[0])},()=>g.members[0]);
   for(const u of shooters){
