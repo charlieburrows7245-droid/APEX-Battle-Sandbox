@@ -144,7 +144,39 @@ function drawBasePlayerName(u){
  ctx.restore();
 }
 const productionIcons=new Map();function productionIcon(id){if(id==null)return null;if(!productionIcons.has(id)){const image=new Image();image.src='assets/menu/units/'+id+'.png';productionIcons.set(id,image);}return productionIcons.get(id);}
-function drawBaseProduction(u){if(!u.buildQueue?.length)return;const queued=u.buildQueue[0],type=typeof queued==='string'?queued:queued.type,entry=typeof queued==='string'?null:queued;const air=type==='heli'||type==='jet';const x=u.x+(u.type==='airbase'?(air?195:395):350),y=u.y+(u.type==='airbase'?(air?-170:25):12);const remaining=Math.max(0,Math.ceil(3-(u.buildTimer??0)));ctx.save();ctx.translate(x,y);ctx.fillStyle='rgba(50,83,113,.78)';ctx.fillRect(-49,-108,98,83);ctx.strokeStyle='rgba(150,195,230,.48)';ctx.lineWidth=1;ctx.strokeRect(-49.5,-108.5,99,84);const troop=nativeTroops[type],sprite=troop&&troopArt[troop.id+'a'];if(sprite?.complete&&sprite.naturalWidth){const frames=72,fw=sprite.naturalWidth/frames,fh=sprite.naturalHeight,scale=Math.min(3,88/Math.max(fw,fh));ctx.drawImage(sprite,fw*17,0,fw,fh,-fw*scale/2,-59-fh*scale/2,fw*scale,fh*scale);}else{const icon=productionIcon(entry?.id);if(icon?.complete&&icon.naturalWidth)ctx.drawImage(icon,-38,-94,76,76);}ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.shadowColor='rgba(0,0,0,.95)';ctx.shadowBlur=3;ctx.font='bold 21px Verdana, sans-serif';ctx.fillStyle='#fff';ctx.fillText(String(remaining),0,0);ctx.font='bold 13px Verdana, sans-serif';ctx.fillText(entry?.name??TYPES[type]?.name??type,0,17);ctx.shadowBlur=0;ctx.fillStyle='rgba(22,39,53,.72)';ctx.fillRect(-39,24,78,5);ctx.fillStyle='#9cd9ff';ctx.fillRect(-39,24,78*Math.min(1,(u.buildTimer??0)/3),5);ctx.restore();}
+function drawBaseProduction(u){
+ if(!u.buildQueue?.length)return;
+ const queued=u.buildQueue[0],type=typeof queued==='string'?queued:queued.type,entry=typeof queued==='string'?null:queued;
+ const air=type==='heli'||type==='jet';
+ const x=u.x+(u.type==='airbase'?(air?195:395):350),y=u.y+(u.type==='airbase'?(air?-170:25):12);
+ const remaining=Math.max(0,Math.ceil(3-(u.buildTimer??0)));
+ ctx.save();ctx.translate(x,y);
+ // The complete production card, including troop name and timer, sits over the owner label.
+ ctx.fillStyle='rgba(48,80,110,.78)';ctx.fillRect(-55,-111,110,139);
+ ctx.strokeStyle='rgba(154,195,227,.5)';ctx.lineWidth=1;ctx.strokeRect(-55.5,-111.5,111,140);
+ const troop=nativeTroops[type],body=troop&&troopArt[troop.id+'a'],turret=troop&&troopArt[troop.id+'b'];
+ const frame=17,frames=72;
+ if(body?.complete&&body.naturalWidth){
+  const fw=body.naturalWidth/frames,fh=body.naturalHeight,scale=Math.min(3,92/Math.max(fw,fh));
+  const px=-fw*scale/2,py=-91-fh*scale/2;
+  ctx.drawImage(body,fw*frame,0,fw,fh,px,py,fw*scale,fh*scale);
+  if(!air&&turret?.complete&&turret.naturalWidth){
+   const tw=turret.naturalWidth/frames,th=turret.naturalHeight;
+   const turretX=-(tw*scale)/2-troop.pivot*scale*.6;
+   const turretY=-91-(th*scale)/2+troop.raise*scale;
+   ctx.drawImage(turret,tw*frame,0,tw,th,turretX,turretY,tw*scale,th*scale);
+  }
+ }else{
+  const icon=productionIcon(entry?.id);
+  if(icon?.complete&&icon.naturalWidth)ctx.drawImage(icon,-43,-105,86,70);
+ }
+ ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.shadowColor='rgba(0,0,0,.95)';ctx.shadowBlur=3;
+ ctx.font='bold 21px Verdana, sans-serif';ctx.fillStyle='#fff';ctx.fillText(String(remaining),0,-7);
+ ctx.font='bold 13px Verdana, sans-serif';ctx.fillText(entry?.name??TYPES[type]?.name??type,0,12);
+ ctx.shadowBlur=0;ctx.fillStyle='rgba(15,34,48,.8)';ctx.fillRect(-43,19,86,5);
+ ctx.fillStyle='#9cd9ff';ctx.fillRect(-43,19,86*Math.min(1,(u.buildTimer??0)/3),5);
+ ctx.restore();
+}
 function drawUnit(u){if(!TYPES[u.type].speed){actualBase(u);drawBasePlayerName(u);drawBaseProduction(u);return}const def=nativeTroops[u.type],frame=((Math.round(18-u.angle*72/(Math.PI*2))-1)%72+72)%72;ctx.save();ctx.translate(u.x,u.y);
 if(selected.has(u.id)){ctx.strokeStyle=colors[u.team];ctx.lineWidth=1.5/zoom;ctx.beginPath();ctx.ellipse(0,4,27,12,0,0,Math.PI*2);ctx.stroke();if(u.target){ctx.setLineDash([5,7]);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(u.target.x-u.x,u.target.y-u.y);ctx.stroke();ctx.setLineDash([])}}
 if(def.air){ctx.globalAlpha=.35;spriteFrame(troopArt[def.id+'b'],frame,14,22);ctx.globalAlpha=1}spriteFrame(troopArt[def.id+'a'],frame,0,0);
