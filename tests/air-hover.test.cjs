@@ -11,7 +11,7 @@ for(const type of ['heli','jet','unit44']){
  const shot=c.shots.at(-1),origin=visuals.launchPoint(unit,5);assert.equal(shot.x,origin.x);assert.equal(shot.y,origin.y);assert(shot.y>visuals.point(unit,5).y);assert.equal(shot.tx,500);
 }
 for(const type of ['heli','jet']){
- const u={id:49,type,x:1000,y:2000},radius=type==='heli'?24:72,start=visuals.pose(u,0),period=2*Math.PI/start.rate;
+ const u={id:49,type,x:1000,y:2000},radius=type==='heli'?30:90,start=visuals.pose(u,0),period=2*Math.PI/start.rate;
  for(let i=0;i<1000;i++){const p=visuals.pose(u,i/10);assert(Math.abs(Math.hypot(p.dx,p.dy*3)-radius)<1e-9,'constant-radius projected circle');assert(Math.abs(p.dx*Math.cos(p.heading)+p.dy*3*Math.sin(p.heading))<1e-8,'heading tangent to circle');const next=visuals.point(u,i/10+.01);assert(Math.hypot(next.x-p.x,next.y-p.y)>0,'always moving');assert.equal(u.x,1000);assert.equal(u.y,2000);}
  const end=visuals.pose(u,period);assert(Math.hypot(start.x-end.x,start.y-end.y)<1e-8,'full circle returns to start');
 }

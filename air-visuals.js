@@ -3,7 +3,7 @@
  'use strict';
  const RATE=2.2,HELICOPTER_RATE=1.1;
  function pose(unit,time,helicopter=unit.type==='heli'){
-  const radius=helicopter?24:72,rate=helicopter?HELICOPTER_RATE:RATE;
+  const radius=helicopter?30:90,rate=helicopter?HELICOPTER_RATE:RATE;
   // One phase per division: members keep their relative slots and turn together.
   const phase=(unit.groupId??unit.id)*1.37+time*rate;
   const dx=Math.cos(phase)*radius,dy=Math.sin(phase)*radius/3;

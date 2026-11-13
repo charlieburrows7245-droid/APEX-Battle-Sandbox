@@ -1,3 +1,7 @@
+v1.18.7 - Wider aircraft circles and following labels
+- Increased aircraft orbit radius by 25% while retaining synchronized group flight.
+- Player name, troop type/count and selection outline follow the displayed formation around its orbit.
+
 v1.18.6 - Synchronized division circling
 - Every member of an air division shares the same orbit phase and heading.
 - Relative formation slots stay fixed while the division circles as one group.
