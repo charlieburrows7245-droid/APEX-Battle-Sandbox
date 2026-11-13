@@ -25,20 +25,19 @@ const GROUP_SIZE=49,PLAYER_TEAM=0;
 const DW5_FORMATION_X=[0,1,1,-1,-1,0,2,0,-2,2,2,-2,-2,1,1,-1,-1,3,3,-3,-3,0,4,0,-4,-3,3,-3,3,-4,4,-4,4,2,-2,-2,2,5,-5,5,-5,1,-1,-1,1,0,6,0,-6];
 const DW5_FORMATION_Y=[0,-1,1,1,-1,-2,0,2,0,-2,2,2,-2,-3,3,-3,3,-1,1,-1,1,-4,0,4,0,-3,3,3,-3,2,2,-2,-2,4,-4,4,-4,1,1,-1,-1,5,-5,5,-5,6,0,-6,0];
 let nextGroupId=0;
-function troopSpacing(type){return DW5_MENU_UNITS.find(e=>e.type===type)?.render?.spacing??48;}
-function formationOffset(type,index){
- // DW5's 49-member diamond uses the shared staggered slot coordinates.
- // Howitzers have tighter centres than the default unit art spacing.
- if(type==='unit5'){
-  const slot=index%49,spacing=38;
-  return{x:DW5_FORMATION_X[slot]*spacing,y:DW5_FORMATION_Y[slot]*spacing/3};
- }
- return{x:DW5_FORMATION_X[index%49]*troopSpacing(type),y:DW5_FORMATION_Y[index%49]*troopSpacing(type)/3};
-}
+function troopSpacing(type){return type==='unit5'?38:DW5_MENU_UNITS.find(e=>e.type===type)?.render?.spacing??48;}
+function formationOffset(type,index){return{x:DW5_FORMATION_X[index%49]*troopSpacing(type),y:DW5_FORMATION_Y[index%49]*troopSpacing(type)/3};}
 function friendlyTeams(a,b){return a===b||(a===0&&b===2)||(a===2&&b===0);}
 function troopRelationColor(side){return side===3?'#c2bd9f':side===PLAYER_TEAM?'#65ff38':friendlyTeams(side,PLAYER_TEAM)?'#00cfff':'#ff3535';}
 function troopGroups(list=units){const groups=new Map();for(const u of list){if(!TYPES[u.type]?.speed)continue;const key=u.groupId??'single-'+u.id;let g=groups.get(key);if(!g){g=[];groups.set(key,g);}g.push(u);}return [...groups.values()];}
-function repairTroopGroups(){divisionMotion.clear();nextGroupId=units.reduce((max,u)=>Math.max(max,Number(u.groupId)||0),nextGroupId);const pending=new Map(),remap=new Map();for(const u of units){if(!TYPES[u.type]?.speed)continue;const key=(u.groupId??'legacy')+':'+u.team+':'+u.type;let batch=pending.get(key);if(!batch||batch.count>=49){batch={id:++nextGroupId,count:0,used:new Set()};pending.set(key,batch);if(!remap.has(key))remap.set(key,batch.id);}let slot=u.groupSlot;if(!Number.isInteger(slot)||slot<0||slot>=49||batch.used.has(slot)){slot=0;while(batch.used.has(slot))slot++;}batch.used.add(slot);u.groupId=batch.id;u.groupSlot=slot;batch.count++;}for(const u of units)if(u.joinOrder){const id=remap.get(u.joinOrder.groupId+':'+u.team+':'+u.type);if(id)u.joinOrder.groupId=id;else{delete u.joinOrder;u.target=null;}}}
+function repairTroopGroups(){divisionMotion.clear();nextGroupId=units.reduce((max,u)=>Math.max(max,Number(u.groupId)||0),nextGroupId);const pending=new Map(),remap=new Map();for(const u of units){if(!TYPES[u.type]?.speed)continue;const key=(u.groupId??'legacy')+':'+u.team+':'+u.type;let batch=pending.get(key);if(!batch||batch.count>=49){batch={id:++nextGroupId,count:0,used:new Set()};pending.set(key,batch);if(!remap.has(key))remap.set(key,batch.id);}let slot=u.groupSlot;if(!Number.isInteger(slot)||slot<0||slot>=49||batch.used.has(slot)){slot=0;while(batch.used.has(slot))slot++;}batch.used.add(slot);u.groupId=batch.id;u.groupSlot=slot;batch.count++;}for(const u of units)if(u.joinOrder){const id=remap.get(u.joinOrder.groupId+':'+u.team+':'+u.type);if(id)u.joinOrder.groupId=id;else{delete u.joinOrder;u.target=null;}}compactIdleHowitzerGroups();}
+function compactIdleHowitzerGroups(list=units){
+ for(const members of troopGroups(list)){
+  if(members[0].type!=='unit5'||members.some(u=>u.target||u.formationOrder||u.joinOrder))continue;
+  const anchor=members.reduce((sum,u)=>{const p=formationOffset(u.type,u.groupSlot??0);sum.x+=u.x-p.x;sum.y+=u.y-p.y;return sum;},{x:0,y:0});anchor.x/=members.length;anchor.y/=members.length;
+  for(const u of members){const p=formationOffset(u.type,u.groupSlot??0);u.x=Math.max(0,Math.min(WORLD_WIDTH,anchor.x+p.x));u.y=Math.max(0,Math.min(WORLD_HEIGHT,anchor.y+p.y));}
+ }
+}
 function expandGroupSelection(){const ids=new Set(units.filter(u=>selected.has(u.id)&&TYPES[u.type].speed).map(u=>u.groupId));for(const u of units)if(TYPES[u.type].speed&&ids.has(u.groupId))selected.add(u.id);}
 // Compact battlefield labels only; full unit names remain in menus/stats.
 // Battlefield-only abbreviations. The full name is preserved in menus.
@@ -405,7 +404,7 @@ function drawDeathEffects(){
 function drawUnit(u){if(!TYPES[u.type].speed){if(zoom<.08){ctx.fillStyle=u.type==='airbase'?'#56a9ff':u.type==='helibase'?'#6ee9cf':colors[u.team];const r=2/zoom;ctx.fillRect(u.x-r,u.y-r,r*2,r*2);return;}actualBase(u);drawBaseFlag(u);drawBasePlayerName(u);drawBaseProduction(u);return}const def=nativeTroops[u.type],animation=troopAnimation(u);ctx.save();ctx.translate(u.x,u.y);
 if(selected.has(u.id)){if(u.target){ctx.setLineDash([5,7]);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(u.target.x-u.x,u.target.y-u.y);ctx.stroke();ctx.setLineDash([])}}
 if(def.air){ctx.globalAlpha=.35;drawTroopHeading(troopArt[def.id+'b'],animation.body,14,22);ctx.globalAlpha=1}
-ctx.save();if(u.type==='heli')ctx.translate(0,Math.sin(animation.time*2.6)*1.2);
+ctx.save();if(def.air){const drift=ApexAirVisuals.offset(u.id,combatClock,!!u.target);ctx.translate(drift.x,drift.y);}
 drawTroopHeading(troopArt[def.id+'a'],animation.body,0,0);
 if(!def.air&&def.turret)drawTroopHeading(troopArt[def.id+'b'],animation.turret,(def.shiftX??0)-Math.cos(animation.body)*def.pivot,def.raise-Math.sin(animation.body)*def.pivot/3);
 if(u.type==='heli')spriteFrame(apacheRotor,Math.floor(animation.time*1000/35)%18,0,-7,18);
@@ -877,7 +876,7 @@ function fitFactoryMenuIcon(im){const w=im.naturalWidth||im.width,h=im.naturalHe
 const troopAnimationStates=new WeakMap();
 function turnToward(angle,target,step){const d=Math.atan2(Math.sin(target-angle),Math.cos(target-angle));return angle+Math.sign(d)*Math.min(Math.abs(d),step);}
 function advanceTroopAnimation(state,u,dt,random=Math.random){dt=Math.min(.1,Math.max(0,dt));state.time+=dt;const moving=!!u.target,oldBody=state.body;const attacking=Number.isFinite(u.aimAngle)&&last<(u.aimUntil??0);const air=!!nativeTroops[u.type].air;
-// Aircraft have no independent turret: visually face their current enemy while firing.
+// Aircraft retain their travel/idle heading; missiles steer independently.
 // Ground vehicles keep their moving hull direction and turn only the weapon layer.
 // Face the actual direction of travel, including obstacle detours.
 // The formation anchor's heading is used when a member barely moves.
@@ -885,12 +884,12 @@ const travelDx=u.x-(state.lastX??u.x),travelDy=(u.y-(state.lastY??u.y))*3;
 state.lastX=u.x;state.lastY=u.y;
 const actuallyTravelling=moving&&Math.hypot(travelDx,travelDy)>.08;
 const travelHeading=actuallyTravelling?Math.atan2(travelDy,travelDx):u.formationOrder&&moving?divisionMotion.get(u.groupId)?.travelAngle:u.angle;
-const bodyGoal=air&&attacking?u.aimAngle:(Number.isFinite(travelHeading)?travelHeading:u.angle);
+const bodyGoal=Number.isFinite(travelHeading)?travelHeading:u.angle;
 state.body=turnToward(state.body,bodyGoal,dt*(moving?7:3));
 state.idleAim+=Math.atan2(Math.sin(state.body-oldBody),Math.cos(state.body-oldBody));state.idleClock+=dt;while(state.idleClock>=.05){state.idleClock-=.05;if(!air&&random()<.02)state.idleAim=state.body+(random()-.5)*Math.PI*5/18;}
 // TanSAM's large launcher is its most visible directional layer. Keep it
 // aligned with the moving hull unless it is actively tracking a target.
-const goal=attacking?u.aimAngle:(u.type==='aa'&&moving?state.body:air?state.body:state.idleAim);
+const goal=air?state.body:attacking?u.aimAngle:(u.type==='aa'&&moving?state.body:state.idleAim);
 state.turret=turnToward(state.turret,goal,dt*(attacking?3:u.type==='aa'&&moving?7:1.5));state.moving=moving;return state;}
 function troopAnimation(u){let state=troopAnimationStates.get(u);if(!state){state={body:u.angle,turret:u.angle,idleAim:u.angle,idleClock:0,time:u.id*.137,updatedAt:last,moving:!!u.target};troopAnimationStates.set(u,state);}const dt=paused?0:Math.min(.1,Math.max(0,(last-state.updatedAt)/1000))*speed;state.updatedAt=last;return advanceTroopAnimation(state,u,dt);}
 function headingFrame(angle){return ((17+angle*36/Math.PI)%72+72)%72;}
@@ -1350,7 +1349,7 @@ function animateBaseMissiles(base,victim,dt){
 const troopMissileSchedules=new WeakMap();
 function animateTroopMissiles(group,victim,dt){
  if(!victim)return;
- const missileType=group.type==='heli'||group.type==='aa'||group.type==='raptor';
+ const missileType=!!nativeTroops[group.type]?.air||group.type==='aa';
  if(!missileType)return;
  for(const unit of group.members){
   if(unit.hp<=0)continue;
@@ -1362,7 +1361,8 @@ function animateTroopMissiles(group,victim,dt){
   const distance=Math.hypot(impact.x-unit.x,(impact.y-unit.y)*3);
   // Allow a visible flight across the battlefield; no instantaneous 180ms dash.
   const duration=Math.max(.35,Math.min(1.5,distance/1350));
-  shots.push({x:unit.x,y:unit.y,tx:impact.x,ty:impact.y,life:duration,total:duration,kind:'missile',missile:true});
+  const launch=nativeTroops[unit.type]?.air?ApexAirVisuals.launchPoint(unit,combatClock):unit;
+  shots.push({x:launch.x,y:launch.y,tx:impact.x,ty:impact.y,life:duration,total:duration,kind:'missile',missile:true});
   troopMissileSchedules.set(unit,.32+Math.random()*1.08);
  }
 }
@@ -1399,7 +1399,7 @@ function updateDivisionCombat(dt){
    const kind=COMBAT_STATS[u.type]?.sound??'mg';
    // Base turrets contribute to one focused volley, not separate visible
    // shots scattered across the formation.
-   if(TYPES[g.type].speed&&!['heli','aa','raptor'].includes(u.type)){const impact=TYPES[victim.type].speed?{x:victim.x,y:victim.y}:targetedTurretPoint(victim);shots.push({x:u.x,y:u.y,tx:impact.x,ty:impact.y,life:.18,total:.18,kind});}
+   if(TYPES[g.type].speed&&!nativeTroops[u.type]?.air&&u.type!=='aa'){const impact=TYPES[victim.type].speed?{x:victim.x,y:victim.y}:targetedTurretPoint(victim);shots.push({x:u.x,y:u.y,tx:impact.x,ty:impact.y,life:.18,total:.18,kind});}
    u.aimAngle=Math.atan2((victim.y-u.y)*3,victim.x-u.x);
   }
   // Base missile visuals are emitted independently above, not per damage volley.

@@ -1,3 +1,8 @@
+v1.18.3 - Air hover and Howitzer division spacing
+- Air units drift visually around a fixed position and retain their heading when firing.
+- All air types launch independent missiles from below the body.
+- Unified Howitzer slot, collision and division spacing at the existing compact 38-unit diamond spacing.
+
 v1.18.2 - Helibase menu and flag anchors
 - Upgrade menus use the same helibase building positions as their rendered artwork.
 - Moved the helibase flag and pole clear of the hangar silhouette.
