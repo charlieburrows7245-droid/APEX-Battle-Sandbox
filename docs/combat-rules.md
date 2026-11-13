@@ -35,3 +35,7 @@ The public help page does not enumerate weak-tank membership. The current sandbo
 Health pools and damage normalization retain the existing sandbox model. The help page publishes armour, not independent maximum HP; this release does not claim exact native health or a verified server damage formula. Existing base range settings and one-casualty-per-attacker limits are retained.
 
 Validation: production.test.cjs, unit-stats.test.cjs and base-range.test.cjs. The older broad combat harness still has its pre-existing extraction failure.
+
+## Help-page audit — 13 November 2026
+
+All 36 buildable catalogue entries were compared to https://help.deltawars.com/?a=units for normal firepower, special firepower, armour, base range, sight and speed; no numeric differences were found. The checked numeric snapshot is tests/fixtures/dw5-help-unit-stats.json. Existing target classes distinguish all airborne units, fixed-wing aircraft and helicopters. Pantsir uses its special firepower and triple-range rule only against fixed-wing aircraft; TanSAM uses its bonus only against helicopters. The overview publishes the special damage numbers but does not explicitly document these two triple-range rules, so they remain existing game-rule implementations rather than claims verified from that table. HP normalization, casualty timing and exact server damage calculations remain sandbox approximations.

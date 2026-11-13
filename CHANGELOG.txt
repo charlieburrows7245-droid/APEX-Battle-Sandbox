@@ -1,3 +1,9 @@
+v1.18.5 - Reference aircraft motion and help-page audit
+- Aircraft circle independently at different phases, with brisker turns matching the supplied clip.
+- Audited all 36 buildable units against the current help page: base/special firepower, armour, range, sight and speed match.
+- Added explicit Pantsir tests: 3000 firepower/30 range against planes; 120 firepower/10 range against helicopters.
+- Retained sandbox HP/damage conversion and existing conditional range rules.
+
 v1.18.4 - Continuous air patrol circles
 - Air units continuously circle their fixed formation-slot centres instead of drifting slightly.
 - Aircraft face the direction of flight around the circle; attacks do not steer the body.

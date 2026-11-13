@@ -20,9 +20,12 @@ assert.equal(weaponRange({type:'aa',members:[{}]},{type:'base',firing:true}),900
 assert.equal(weaponRange({type:'aa',members:[{}]},{type:'heli',firing:true}),2700);
 const g=id=>({type:type(id),members:[{}]});assert.equal(weaponRange(g(22),{type:'base',firing:true}),2160);assert.equal(weaponRange(g(22),{type:'tank',firing:true}),720);
 assert.equal(weaponRange(g(32),g(5)),1620);assert.equal(weaponRange(g(32)),810);
-assert.equal(weaponRange(g(6),{type:'tank',moving:true}),1800);assert.equal(weaponRange(g(38),{type:'jet'}),2700);
+assert.equal(weaponRange(g(6),{type:'tank',moving:true}),1800);assert.equal(weaponRange(g(38),{type:'jet'}),2700);assert.equal(weaponRange(g(38),{type:'heli'}),900);assert.equal(effectiveFirepower(type(38),'jet'),3000);assert.equal(effectiveFirepower(type(38),'heli'),120);
 for(const e of DW5_MENU_UNITS){for(const field of ['firepower','armor','range','speed'])assert(Number.isFinite(e.combat[field]),e.name+' '+field);assert(e.combat.armor>0);assert(e.combat.categories.length);}
 for(const [id,raise,pivot,x] of [[5,-20,6,2],[22,-19,10,1],[31,-18,6,0]]){const r=byId(id).render;assert.equal(r.raise,raise);assert.equal(r.pivot,pivot);assert.equal(r.shiftX,x);}
 assert.equal(shotDamage({type:type(5)},{type:'base'}),3750/200);assert(shotDamage({type:type(5)},{type:'tank'})<shotDamage({type:type(11)},{type:'tank'}));
 console.log('PASS: published stats, normal/special/MG damage, overlapping target classes, specialist priority, conditional ranges, howitzer pivots.');
 `,{assert,console});
+
+const published=require('./fixtures/dw5-help-unit-stats.json');const catalogue=vm.runInNewContext(fs.readFileSync(path.join(root,'unit-catalog.js'),'utf8')+'\nDW5_MENU_UNITS');
+for(const entry of catalogue){const expected=published.units[entry.id];assert(expected,'published row for '+entry.name);for(const field of ['firepower','armor','range','sight','speed','special'])assert.equal(entry.combat[field],expected[field],entry.name+' '+field+' agrees with published help');}
