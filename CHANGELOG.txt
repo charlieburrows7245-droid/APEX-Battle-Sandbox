@@ -1,3 +1,8 @@
+v1.18.4 - Continuous air patrol circles
+- Air units continuously circle their fixed formation-slot centres instead of drifting slightly.
+- Aircraft face the direction of flight around the circle; attacks do not steer the body.
+- Shadows and missile launch points follow the circling body; division centres stay fixed until commanded to move.
+
 v1.18.3 - Air hover and Howitzer division spacing
 - Air units drift visually around a fixed position and retain their heading when firing.
 - All air types launch independent missiles from below the body.
