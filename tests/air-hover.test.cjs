@@ -16,6 +16,10 @@ for(const type of ['heli','jet']){
  const end=visuals.pose(u,period);assert(Math.hypot(start.x-end.x,start.y-end.y)<1e-8,'full circle returns to start');
 }
 const ground={type:'tank',x:0,y:0,angle:0,aimAngle:Math.PI/2,aimUntil:1000},state={body:0,turret:0,idleAim:0,idleClock:0,time:0};c.advanceTroopAnimation(state,ground,.1,()=>0);assert.equal(state.body,0);assert(state.turret>0,'ground turret still aims independently');
-console.log('PASS: continuous fixed-centre circles and tangent headings, unchanged simulation position, independent air headings and missiles, ground aiming retained.');
+console.log('PASS: continuous fixed-centre circles and tangent headings, unchanged simulation position, attack-independent air headings and missiles, ground aiming retained.');
 
-const memberA=visuals.pose({id:1,groupId:10,groupSlot:0,type:'jet',x:100,y:100},1),memberB=visuals.pose({id:2,groupId:10,groupSlot:1,type:'jet',x:100,y:100},1);assert(Math.abs(memberA.heading-memberB.heading)>.5,'aircraft in the same division turn independently');assert(2*Math.PI/memberA.rate<3,'jet orbit matches the brisk reference motion');
+const leader={id:1,groupId:10,groupSlot:0,type:'jet',x:100,y:100};
+for(let time=0;time<10;time+=.1){const a=visuals.pose(leader,time);for(let slot=1;slot<49;slot++){const unit={...leader,id:slot+1,groupSlot:slot,x:100+slot*10,y:100+slot*3},b=visuals.pose(unit,time);assert.equal(a.heading,b.heading,'division turns together');assert.equal(a.dx,b.dx);assert.equal(a.dy,b.dy);assert(Math.abs((b.x-a.x)-(unit.x-leader.x))<1e-9,'relative formation spacing preserved');assert(Math.abs((b.y-a.y)-(unit.y-leader.y))<1e-9);}}
+const other=visuals.pose({...leader,groupId:11},1),a=visuals.pose(leader,1);assert.notEqual(other.heading,a.heading,'separate divisions have separate orbits');
+
+c.divisionMotion.set(7,{travelAngle:.7,angle:.7,moveSpeed:90,target:{x:500,y:500}});const p1=c.airFlightPose({id:1,groupId:7,type:'jet',x:0,y:0,angle:0,moveSpeed:20,target:{x:1,y:2}}),p2=c.airFlightPose({id:2,groupId:7,type:'jet',x:10,y:20,angle:2,moveSpeed:150,target:{x:5,y:8}});assert.equal(p1.heading,p2.heading,'moving division uses shared anchor velocity');

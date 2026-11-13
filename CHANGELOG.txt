@@ -1,3 +1,9 @@
+v1.18.6 - Synchronized division circling
+- Every member of an air division shares the same orbit phase and heading.
+- Relative formation slots stay fixed while the division circles as one group.
+- Moving divisions use their shared anchor velocity for flight headings.
+- Separate divisions retain independent patrol circles; missile aiming stays independent.
+
 v1.18.5 - Reference aircraft motion and help-page audit
 - Aircraft circle independently at different phases, with brisker turns matching the supplied clip.
 - Audited all 36 buildable units against the current help page: base/special firepower, armour, range, sight and speed match.

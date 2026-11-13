@@ -876,7 +876,7 @@ function fitFactoryMenuIcon(im){const w=im.naturalWidth||im.width,h=im.naturalHe
 const troopAnimationStates=new WeakMap();
 function turnToward(angle,target,step){const d=Math.atan2(Math.sin(target-angle),Math.cos(target-angle));return angle+Math.sign(d)*Math.min(Math.abs(d),step);}
 function troopVisualPoint(u){return nativeTroops[u.type]?.air?airFlightPose(u):u;}
-function airFlightPose(u){return ApexAirVisuals.pose(u,combatClock,COMBAT_STATS[u.type]?.categories.includes('helicopter')??u.type==='heli');}
+function airFlightPose(u){const motion=divisionMotion.get(u.groupId),flight=motion?{...u,angle:motion.travelAngle??motion.angle,moveSpeed:motion.moveSpeed,target:motion.target}:u;return ApexAirVisuals.pose(flight,combatClock,COMBAT_STATS[u.type]?.categories.includes('helicopter')??u.type==='heli');}
 function advanceTroopAnimation(state,u,dt,random=Math.random){dt=Math.min(.1,Math.max(0,dt));state.time+=dt;const moving=!!u.target,oldBody=state.body;const attacking=Number.isFinite(u.aimAngle)&&last<(u.aimUntil??0);const air=!!nativeTroops[u.type].air;
 // Aircraft retain their travel/idle heading; missiles steer independently.
 // Ground vehicles keep their moving hull direction and turn only the weapon layer.

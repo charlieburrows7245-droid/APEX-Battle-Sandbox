@@ -4,8 +4,8 @@
  const RATE=2.2,HELICOPTER_RATE=1.1;
  function pose(unit,time,helicopter=unit.type==='heli'){
   const radius=helicopter?24:72,rate=helicopter?HELICOPTER_RATE:RATE;
-  // Independent phases reproduce the scattered turning aircraft in the reference.
-  const phase=(unit.groupId??0)*.37+(unit.groupSlot??unit.id)*2.399963229728653+time*rate;
+  // One phase per division: members keep their relative slots and turn together.
+  const phase=(unit.groupId??unit.id)*1.37+time*rate;
   const dx=Math.cos(phase)*radius,dy=Math.sin(phase)*radius/3;
   const speed=unit.target?Math.max(0,unit.moveSpeed||0):0,heading=unit.angle||0;
   const vx=Math.cos(heading)*speed-Math.sin(phase)*radius*rate;
