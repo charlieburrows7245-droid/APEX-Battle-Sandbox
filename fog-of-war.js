@@ -70,7 +70,8 @@ const ApexFog=(()=>{
   // feather the outer edge of current vision, rather than blurring the whole map.
   for(let row=0;row<rows;row++)for(let col=0;col<columns;col++){
    const index=row*columns+col,j=index*4,seen=visible[index]===1,visited=explored[index]===1;
-   const baseAlpha=seen?0:visited?150:225;
+   // DW5-like translucent shadow: preserve terrain texture and colour.
+   const baseAlpha=seen?0:visited?76:116;
    let alpha=baseAlpha;
    if(!seen){
     let nearest=edgeCells+1;
@@ -89,7 +90,7 @@ const ApexFog=(()=>{
      alpha=Math.round(baseAlpha*smooth);
     }
    }
-   data[j]=13;data[j+1]=15;data[j+2]=12;data[j+3]=alpha;
+   data[j]=24;data[j+1]=23;data[j+2]=18;data[j+3]=alpha;
   }
   context.putImageData(pixels,0,0);
  }
