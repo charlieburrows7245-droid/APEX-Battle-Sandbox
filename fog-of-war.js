@@ -6,7 +6,7 @@ const ApexFog=(()=>{
  const CELL_X=180,CELL_Y=60,FOG_TICK_MS=180;
  let columns=0,rows=0,worldWidth=0,worldHeight=0;
  let visible=new Uint8Array(0),explored=new Uint8Array(0);
- let surface=null,context=null,pixels=null,softSurface=null,softContext=null,lastTick=0,dirty=true;
+ let surface=null,context=null,pixels=null,lastTick=0,dirty=true;
  let enabled=true;
  try{enabled=localStorage.getItem('apex-fog-enabled')!=='off';}catch{}
  function configure(w,h){
@@ -16,10 +16,7 @@ const ApexFog=(()=>{
   visible=new Uint8Array(columns*rows);explored=new Uint8Array(columns*rows);
   surface=document.createElement('canvas');surface.width=columns;surface.height=rows;
   context=surface.getContext('2d',{alpha:true});pixels=context.createImageData(columns,rows);
-  // Blur the mask once per sight update, not every animation frame. The
-  // enlarged intermediate surface avoids blocky pixel edges at normal zoom.
-  softSurface=document.createElement('canvas');softSurface.width=columns*2;softSurface.height=rows*2;
-  softContext=softSurface.getContext('2d',{alpha:true});
+
   dirty=true;
  }
  function reset(){visible.fill(0);explored.fill(0);dirty=true;lastTick=0;}
@@ -68,24 +65,39 @@ const ApexFog=(()=>{
    if(isBase&&u.type==='airbase')radius=Math.max(radius,19*90);
    markVision(u.x,u.y,radius);
   }
-  const data=pixels.data;
-  for(let i=0;i<visible.length;i++){
-   const j=i*4,seen=visible[i]===1,visited=explored[i]===1;
-   data[j]=13;data[j+1]=15;data[j+2]=12;data[j+3]=seen?0:visited?150:225;
+  const data=pixels.data,edgeCells=3;
+  // Keep the fog fully opaque/clear through the body of each region. Only
+  // feather the outer edge of current vision, rather than blurring the whole map.
+  for(let row=0;row<rows;row++)for(let col=0;col<columns;col++){
+   const index=row*columns+col,j=index*4,seen=visible[index]===1,visited=explored[index]===1;
+   const baseAlpha=seen?0:visited?150:225;
+   let alpha=baseAlpha;
+   if(!seen){
+    let nearest=edgeCells+1;
+    for(let dy=-edgeCells;dy<=edgeCells;dy++){
+     const yy=row+dy;if(yy<0||yy>=rows)continue;
+     for(let dx=-edgeCells;dx<=edgeCells;dx++){
+      const xx=col+dx;if(xx<0||xx>=columns)continue;
+      if(visible[yy*columns+xx]!==1)continue;
+      const distance=Math.hypot(dx,dy);
+      if(distance<nearest)nearest=distance;
+     }
+    }
+    if(nearest<=edgeCells){
+     const t=Math.max(0,Math.min(1,nearest/edgeCells));
+     const smooth=t*t*(3-2*t);
+     alpha=Math.round(baseAlpha*smooth);
+    }
+   }
+   data[j]=13;data[j+1]=15;data[j+2]=12;data[j+3]=alpha;
   }
   context.putImageData(pixels,0,0);
-  // Smooth the coarse sight grid into the broad feathered transition shown
-  // in the DW5 reference. Keep logical visibility separate from this art.
-  softContext.clearRect(0,0,softSurface.width,softSurface.height);
-  softContext.save();softContext.filter='blur(9px)';
-  softContext.drawImage(surface,0,0,softSurface.width,softSurface.height);
-  softContext.restore();
  }
  function draw(ctx){
-  if(enabled&&softSurface)ctx.drawImage(softSurface,0,0,worldWidth,worldHeight);
+  if(enabled&&surface){ctx.imageSmoothingEnabled=true;ctx.drawImage(surface,0,0,worldWidth,worldHeight);}
  }
  function drawMinimap(ctx,w,h){
-  if(enabled&&softSurface)ctx.drawImage(softSurface,0,0,w,h);
+  if(enabled&&surface){ctx.imageSmoothingEnabled=true;ctx.drawImage(surface,0,0,w,h);}
  }
  function exportExplored(){
   if(!columns)return null;
