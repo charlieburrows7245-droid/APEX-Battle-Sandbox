@@ -16,7 +16,7 @@
   const allowed=new Set(['base','airbase','helibase']);
   for(const b of bases.filter(b=>allowed.has(b.type)&&b.hp>0).sort((a,b)=>(a.type==='base'?0:1)-(b.type==='base'?0:1))){
    const x=Math.round(b.x*sx),y=Math.round(b.y*sy),air=b.type==='airbase',heli=b.type==='helibase';
-   c.fillStyle=b.fogVisible===false?'#604445':teamColor(b.team);c.fillRect(x-2,y-2,4,4);
+   c.fillStyle=b.fogVisible===false?'#604445':teamColor(b.team);c.fillRect(x-2.5,y-2.5,5,5);
    if(air||heli){c.strokeStyle=c.fillStyle;c.lineWidth=1;c.beginPath();c.moveTo(x-(air?5:0),y-(heli?5:0));c.lineTo(x+(air?5:0),y+(heli?5:0));c.stroke();}
   }
   for(const u of bases){if(allowed.has(u.type)||!(u.hp>0))continue;c.fillStyle=teamColor(u.team);c.beginPath();c.arc(u.x*sx,u.y*sy,1.4,0,Math.PI*2);c.fill();}
