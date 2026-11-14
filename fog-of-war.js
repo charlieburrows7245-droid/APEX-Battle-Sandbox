@@ -6,7 +6,7 @@ const ApexFog=(()=>{
  const CELL_X=180,CELL_Y=60,FOG_TICK_MS=180;
  let columns=0,rows=0,worldWidth=0,worldHeight=0;
  let visible=new Uint8Array(0),explored=new Uint8Array(0);
- let surface=null,context=null,pixels=null,lastTick=0,dirty=true;
+ let surface=null,context=null,pixels=null,softSurface=null,softContext=null,lastTick=0,dirty=true;
  let enabled=true;
  try{enabled=localStorage.getItem('apex-fog-enabled')!=='off';}catch{}
  function configure(w,h){
@@ -16,6 +16,10 @@ const ApexFog=(()=>{
   visible=new Uint8Array(columns*rows);explored=new Uint8Array(columns*rows);
   surface=document.createElement('canvas');surface.width=columns;surface.height=rows;
   context=surface.getContext('2d',{alpha:true});pixels=context.createImageData(columns,rows);
+  // Blur the mask once per sight update, not every animation frame. The
+  // enlarged intermediate surface avoids blocky pixel edges at normal zoom.
+  softSurface=document.createElement('canvas');softSurface.width=columns*2;softSurface.height=rows*2;
+  softContext=softSurface.getContext('2d',{alpha:true});
   dirty=true;
  }
  function reset(){visible.fill(0);explored.fill(0);dirty=true;lastTick=0;}
@@ -67,15 +71,21 @@ const ApexFog=(()=>{
   const data=pixels.data;
   for(let i=0;i<visible.length;i++){
    const j=i*4,seen=visible[i]===1,visited=explored[i]===1;
-   data[j]=6;data[j+1]=13;data[j+2]=17;data[j+3]=seen?0:visited?164:245;
+   data[j]=13;data[j+1]=15;data[j+2]=12;data[j+3]=seen?0:visited?150:225;
   }
   context.putImageData(pixels,0,0);
+  // Smooth the coarse sight grid into the broad feathered transition shown
+  // in the DW5 reference. Keep logical visibility separate from this art.
+  softContext.clearRect(0,0,softSurface.width,softSurface.height);
+  softContext.save();softContext.filter='blur(9px)';
+  softContext.drawImage(surface,0,0,softSurface.width,softSurface.height);
+  softContext.restore();
  }
  function draw(ctx){
-  if(enabled&&surface)ctx.drawImage(surface,0,0,worldWidth,worldHeight);
+  if(enabled&&softSurface)ctx.drawImage(softSurface,0,0,worldWidth,worldHeight);
  }
  function drawMinimap(ctx,w,h){
-  if(enabled&&surface)ctx.drawImage(surface,0,0,w,h);
+  if(enabled&&softSurface)ctx.drawImage(softSurface,0,0,w,h);
  }
  function exportExplored(){
   if(!columns)return null;
