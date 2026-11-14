@@ -1,1 +1,1 @@
-{"version":"1.19.4","description":"Smoother, more responsive right-drag map panning with 1.85x travel"}
+{"version":"1.19.5","description":"Right-drag camera now matches DW5 source pan multiplier of 5 with immediate incremental movement"}
