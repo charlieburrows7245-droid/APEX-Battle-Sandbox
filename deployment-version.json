@@ -1,1 +1,1 @@
-{"version":"1.19.6","description":"Smooth 5x right-drag camera interpolation and offscreen river draw culling"}
+{"version":"1.19.7","description":"Prepare terrain chunks between frames to reduce right-drag panning stalls"}
