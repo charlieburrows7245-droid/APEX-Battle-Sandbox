@@ -407,13 +407,14 @@ function drawDeathEffects(){
  }
 }
 function drawHiddenEnemyBase(u){
- // A hidden base shows its terrain footprint, not visible defensive walls or buildings.
+ // DW5 hides the factory/base structures but keeps the natural base terrain art.
+ // berg1 is the unbuilt natural site; berg2 is the built-out ground texture.
  if(zoom<.08)return;
+ const natural=dwArt['berg1.jpg'];
+ const fallback=dwArt[u.type==='airbase'?'berg4.jpg':u.type==='helibase'?'berg3.jpg':'berg2.jpg'];
+ const terrain=natural?.complete&&natural.naturalWidth?natural:fallback;
  ctx.save();ctx.translate(u.x,u.y);
- const terrain=dwArt[u.type==='airbase'?'berg4.jpg':u.type==='helibase'?'berg3.jpg':'berg2.jpg'];
  if(terrain?.complete&&terrain.naturalWidth)ctx.drawImage(terrain,-750,-250,1500,500);
- ctx.strokeStyle='rgba(35,32,25,.22)';ctx.lineWidth=2/Math.max(zoom,.1);
- ctx.beginPath();ctx.ellipse(0,0,705,225,0,0,Math.PI*2);ctx.stroke();
  ctx.restore();
  if(zoom>=.17){
   ctx.save();ctx.font='24px Verdana,Arial,sans-serif';ctx.textAlign='center';
