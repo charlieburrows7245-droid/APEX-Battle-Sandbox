@@ -407,19 +407,14 @@ function drawDeathEffects(){
  }
 }
 function drawHiddenEnemyBase(u){
- // Show the same base footprint and perimeter, without factories, owner, flag,
- // guns, production or upgrade details until friendly radar reveals the base.
+ // A hidden base shows its terrain footprint, not visible defensive walls or buildings.
  if(zoom<.08)return;
  ctx.save();ctx.translate(u.x,u.y);
- const air=u.type==='airbase',heli=u.type==='helibase';
- const terrain=dwArt[air?'berg4.jpg':heli?'berg3.jpg':'berg2.jpg'];
+ const terrain=dwArt[u.type==='airbase'?'berg4.jpg':u.type==='helibase'?'berg3.jpg':'berg2.jpg'];
  if(terrain?.complete&&terrain.naturalWidth)ctx.drawImage(terrain,-750,-250,1500,500);
- const layout=baseDefenceLayout(u),ax=layout.ax,ay=layout.ay;
- const front=dwArt['mauer2b.png'],side=dwArt['mauer2d.png'];
- if(front?.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+10);
- if(side?.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-180);
+ ctx.strokeStyle='rgba(35,32,25,.22)';ctx.lineWidth=2/Math.max(zoom,.1);
+ ctx.beginPath();ctx.ellipse(0,0,705,225,0,0,Math.PI*2);ctx.stroke();
  ctx.restore();
- // Label remains as in DW5, but only over the hidden base footprint.
  if(zoom>=.17){
   ctx.save();ctx.font='24px Verdana,Arial,sans-serif';ctx.textAlign='center';
   ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.95)';ctx.fillStyle='#b94e1e';
@@ -781,7 +776,7 @@ drawDeathEffects();for(const u of units)if(TYPES[u.type].speed&&visible(u))drawT
    ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+ux*13,y+uy*13);ctx.stroke();
    ctx.restore();
   }else{ctx.strokeStyle='#ffe9a1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(s.tx,s.ty);ctx.stroke();}
- }ctx.restore();if(drag?.kind==='select'){ctx.fillStyle='#c7e88722';ctx.strokeStyle='#c7e887';let a=drag.start,b=drag.end;ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y)}if(now-lastMini>=100){lastMini=now;ApexMinimap.draw(mc,mini.width,mini.height,WORLD_WIDTH,WORLD_HEIGHT,units.filter(u=>TYPES[u.type].speed?ApexFog.canSeeUnit(u):true).map(u=>!TYPES[u.type].speed?{...u,fogVisible:ApexFog.canSeeUnit(u)}:u),activeRiverPieces(),mapTerrain.highways??[],colors,{x:cam.x,y:cam.y,width:W/zoom,height:H/zoom});ApexFog.drawMinimap(mc,mini.width,mini.height);if(ApexFog.isEnabled()){mc.save();mc.strokeStyle='#ebf7fc';mc.lineWidth=1;mc.strokeRect((cam.x-W/(2*zoom))/WORLD_WIDTH*mini.width,(cam.y-H/(2*zoom))/WORLD_HEIGHT*mini.height,W/zoom/WORLD_WIDTH*mini.width,H/zoom/WORLD_HEIGHT*mini.height);mc.restore();}}if(now-statsTimer>150){for(const u of units)if(u.production?.endsAt&&u.production.endsAt<=Date.now())delete u.production;const coordinate=mapCoordinates(world(mouse));$('coordinates').textContent=coordinate.x+','+coordinate.y;$('status').textContent=`${paused?'PAUSED':'SIMULATION LIVE'}  ·  YOURS ${units.filter(u=>u.team===0).length} / ALLY ${units.filter(u=>u.team===2).length} / ENEMY ${units.filter(u=>u.team===1&&ApexFog.canSeeUnit(u)).length}  ·  ${Math.round(zoom*100)}%`;$('selection').textContent=selected.size?selected.size+' SELECTED · DELETE TO REMOVE':'NO UNITS SELECTED';statsTimer=now}syncBaseMenuPositions();requestAnimationFrame(frame)}resize();requestAnimationFrame(()=>{generateWorldMap(false);requestAnimationFrame(frame);});
+ }ctx.restore();if(drag?.kind==='select'){ctx.fillStyle='#c7e88722';ctx.strokeStyle='#c7e887';let a=drag.start,b=drag.end;ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y)}if(now-lastMini>=100){lastMini=now;ApexMinimap.draw(mc,mini.width,mini.height,WORLD_WIDTH,WORLD_HEIGHT,units.filter(u=>TYPES[u.type].speed?ApexFog.canSeeUnit(u):true).map(u=>!TYPES[u.type].speed?{...u,fogVisible:ApexFog.canSeeUnit(u)}:u),activeRiverPieces(),mapTerrain.highways??[],colors,{x:cam.x,y:cam.y,width:W/zoom,height:H/zoom});/* Minimap fog is represented by brown unknown-base markers; do not tint its pixels. */if(ApexFog.isEnabled()){mc.save();mc.strokeStyle='#ebf7fc';mc.lineWidth=1;mc.strokeRect((cam.x-W/(2*zoom))/WORLD_WIDTH*mini.width,(cam.y-H/(2*zoom))/WORLD_HEIGHT*mini.height,W/zoom/WORLD_WIDTH*mini.width,H/zoom/WORLD_HEIGHT*mini.height);mc.restore();}}if(now-statsTimer>150){for(const u of units)if(u.production?.endsAt&&u.production.endsAt<=Date.now())delete u.production;const coordinate=mapCoordinates(world(mouse));$('coordinates').textContent=coordinate.x+','+coordinate.y;$('status').textContent=`${paused?'PAUSED':'SIMULATION LIVE'}  ·  YOURS ${units.filter(u=>u.team===0).length} / ALLY ${units.filter(u=>u.team===2).length} / ENEMY ${units.filter(u=>u.team===1&&ApexFog.canSeeUnit(u)).length}  ·  ${Math.round(zoom*100)}%`;$('selection').textContent=selected.size?selected.size+' SELECTED · DELETE TO REMOVE':'NO UNITS SELECTED';statsTimer=now}syncBaseMenuPositions();requestAnimationFrame(frame)}resize();requestAnimationFrame(()=>{generateWorldMap(false);requestAnimationFrame(frame);});
 
 $('editor-toggle').onclick=()=>{const collapsed=document.body.classList.toggle('editor-hidden');$('editor-toggle').textContent=collapsed?'☰ Sandbox editor':'✕ Close editor';$('editor-toggle').setAttribute('aria-expanded',String(!collapsed))};
 
