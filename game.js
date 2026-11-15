@@ -612,8 +612,31 @@ function groundVariant(x,y){let g=314159265+x*y;for(let i=0;i<2;i++){g^=g<<13;g^
 // are composited; a bounded LRU prevents the large map consuming unbounded RAM.
 const terrainOverview=new Image();terrainOverview.src='assets/i/terrain-overview.jpg';
 const groundChunks=new Map();let chunkRevision=-1;const CHUNK_W=1024,CHUNK_H=512,CHUNK_LIMIT=64;
+// Terrain compositing is expensive: never build a new chunk inside the animation frame.
+const pendingTerrainChunks=new Map();let terrainBuildScheduled=false;
+function queueTerrainChunk(x,y,factor){
+ const key=x+','+y+','+factor;
+ if(groundChunks.has(key)||pendingTerrainChunks.has(key))return;
+ pendingTerrainChunks.set(key,{x,y,factor});
+ if(!terrainBuildScheduled)scheduleTerrainBuild();
+}
+function scheduleTerrainBuild(){
+ if(terrainBuildScheduled||!pendingTerrainChunks.size)return;
+ terrainBuildScheduled=true;
+ const run=()=>{
+  terrainBuildScheduled=false;
+  // Prioritize the newest camera position rather than stale chunks from previous drags.
+  const jobs=[...pendingTerrainChunks.values()];
+  jobs.sort((a,b)=>Math.hypot((a.x+.5)*CHUNK_W*a.factor-cam.x,(a.y+.5)*CHUNK_H*a.factor-cam.y)-Math.hypot((b.x+.5)*CHUNK_W*b.factor-cam.x,(b.y+.5)*CHUNK_H*b.factor-cam.y));
+  const job=jobs[0];pendingTerrainChunks.delete(job.x+','+job.y+','+job.factor);
+  terrainChunk(job.x,job.y,job.factor);
+  if(pendingTerrainChunks.size)scheduleTerrainBuild();
+ };
+ if(typeof requestIdleCallback==='function')requestIdleCallback(run,{timeout:200});
+ else setTimeout(run,20);
+}
 function terrainChunk(cx,cy,factor=1){
- if(chunkRevision!==artRevision){groundChunks.clear();chunkRevision=artRevision;}
+ if(chunkRevision!==artRevision){groundChunks.clear();pendingTerrainChunks.clear();chunkRevision=artRevision;}
  const key=cx+','+cy+','+factor;let out=groundChunks.get(key);
  if(out){groundChunks.delete(key);groundChunks.set(key,out);return out;}
  out=document.createElement('canvas');out.width=CHUNK_W+2;out.height=CHUNK_H+2;const c=out.getContext('2d',{alpha:false}),left=(cx*CHUNK_W-1)*factor,top=(cy*CHUNK_H-1)*factor,right=left+(CHUNK_W+2)*factor,bottom=top+(CHUNK_H+2)*factor;c.scale(1/factor,1/factor);c.translate(-left,-top);
@@ -631,7 +654,20 @@ function drawTerrainView(){
  if(factor<=4||!terrainOverview.complete||!terrainOverview.naturalWidth){
   factor=Math.min(factor,4);const cw=CHUNK_W*factor,ch=CHUNK_H*factor,x0=Math.floor(left/cw),x1=Math.floor(right/cw),y0=Math.floor(top/ch),y1=Math.floor(bottom/ch);
   // Do not create thousands of fine chunks while the overview image loads.
-  if((x1-x0+1)*(y1-y0+1)<=CHUNK_LIMIT)for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const im=terrainChunk(x,y,factor);ctx.drawImage(im,(x*CHUNK_W-1)*factor,(y*CHUNK_H-1)*factor,im.width*factor,im.height*factor);}
+  if((x1-x0+1)*(y1-y0+1)<=CHUNK_LIMIT)for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){
+   const key=x+','+y+','+factor,im=groundChunks.get(key);
+   const tileLeft=(x*CHUNK_W-1)*factor,tileTop=(y*CHUNK_H-1)*factor,tileW=(CHUNK_W+2)*factor,tileH=(CHUNK_H+2)*factor;
+   if(im){ctx.drawImage(im,tileLeft,tileTop,im.width*factor,im.height*factor);}
+   else{
+    // Preserve the terrain view while detailed tiles are prepared between frames.
+    if(terrainOverview.complete&&terrainOverview.naturalWidth){
+     const sx=Math.max(0,tileLeft/WORLD_WIDTH*terrainOverview.naturalWidth),sy=Math.max(0,tileTop/WORLD_HEIGHT*terrainOverview.naturalHeight);
+     const sw=Math.min(terrainOverview.naturalWidth-sx,tileW/WORLD_WIDTH*terrainOverview.naturalWidth),sh=Math.min(terrainOverview.naturalHeight-sy,tileH/WORLD_HEIGHT*terrainOverview.naturalHeight);
+     if(sw>0&&sh>0)ctx.drawImage(terrainOverview,sx,sy,sw,sh,Math.max(0,tileLeft),Math.max(0,tileTop),sw/terrainOverview.naturalWidth*WORLD_WIDTH,sh/terrainOverview.naturalHeight*WORLD_HEIGHT);
+    }else{ctx.fillStyle=grass;ctx.fillRect(tileLeft,tileTop,tileW,tileH);}
+    queueTerrainChunk(x,y,factor);
+   }
+  }
  }else if(right>left&&bottom>top){
   const im=terrainOverview;ctx.drawImage(im,left/WORLD_WIDTH*im.naturalWidth,top/WORLD_HEIGHT*im.naturalHeight,(right-left)/WORLD_WIDTH*im.naturalWidth,(bottom-top)/WORLD_HEIGHT*im.naturalHeight,left,top,right-left,bottom-top);
  }
@@ -1572,6 +1608,6 @@ function generateWorldMap(nextSeed=true){
  const terrain=Dw5World.generate(riverSeed,WORLD_WIDTH,WORLD_HEIGHT,activeRiverPieces());
  mapTerrain=terrain;ApexFog.reset();units=[];selected.clear();shots=[];deathEffects.length=0;divisionMotion.clear();
  for(const b of terrain.bases){add(b.type,b.x,b.y,b.team);Object.assign(units.at(-1),{generatedBase:true,mapBaseId:b.index+1,playerName:b.team===0?'Player':'Opponent'});}
- cam={x:terrain.bases[0].x,y:terrain.bases[0].y};cameraPanTarget=null;zoom=1;
+ cam={x:terrain.bases[0].x,y:terrain.bases[0].y};cameraPanTarget=null;pendingTerrainChunks.clear();zoom=1;
  notice('500 bases · 4 airbases · 20 helicopter bases · '+activeRiverPieces().filter(p=>p.type>=16).length+' bridges · seed '+riverSeed);
 }
