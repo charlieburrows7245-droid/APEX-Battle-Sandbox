@@ -1,1 +1,1 @@
-{"version":"1.19.5","description":"Right-drag camera now matches DW5 source pan multiplier of 5 with immediate incremental movement"}
+{"version":"1.19.6","description":"Smooth 5x right-drag camera interpolation and offscreen river draw culling"}
