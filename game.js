@@ -119,12 +119,10 @@ function issueMove(w){
 }
 // DW5 source BY(): Qa/Dx change by 5 screen pixels for every mouse pixel.
 const CAMERA_PAN_SENSITIVITY=5;
-// Smooth mouse event cadence into the display refresh without changing total drag distance.
-const CAMERA_PAN_RESPONSE=75;
-let cameraPanTarget=null;
-canvas.oncontextmenu=e=>e.preventDefault();canvas.onpointerdown=e=>{e.preventDefault();canvas.setPointerCapture(e.pointerId);let p=pos(e),w=world(p);if(e.button===2||e.button===1){drag={kind:'pan',button:e.button,start:p,last:p};cameraPanTarget={...cam};canvas.style.cursor='grabbing';return}if(e.button!==0)return;if(tool!=='select'){if(w.x<0||w.x>WORLD_WIDTH||w.y<0||w.y>WORLD_HEIGHT)return;spawn(tool,w.x,w.y,team,TYPES[tool].speed?+$('quantity').value:1);notice(TYPES[tool].name+' deployed for '+(['Your','Enemy','Ally'][team])+' force.');return}drag={kind:'select',start:p,end:p,shift:e.shiftKey}};
-canvas.onpointermove=e=>{mouse=pos(e);if(!drag)return;if(drag.kind==='pan'){const dx=mouse.x-drag.last.x,dy=mouse.y-drag.last.y;lastPanInputAt=performance.now();cameraPanTarget.x=Math.max(0,Math.min(WORLD_WIDTH,cameraPanTarget.x-dx*CAMERA_PAN_SENSITIVITY/zoom));cameraPanTarget.y=Math.max(0,Math.min(WORLD_HEIGHT,cameraPanTarget.y-dy*CAMERA_PAN_SENSITIVITY/zoom));drag.last=mouse}else drag.end=mouse};
-canvas.onpointerup=e=>{if(drag?.kind==='pan'&&drag.button===2&&Math.hypot(drag.start.x-pos(e).x,drag.start.y-pos(e).y)<5)transferTroopToClickedGroup(world(pos(e)));if(drag?.kind==='select'){const a=world(drag.start),b=world(pos(e));if(Math.hypot(drag.start.x-pos(e).x,drag.start.y-pos(e).y)<5){const troop=units.slice().reverse().find(u=>ApexFog.canSeeUnit(u)&&TYPES[u.type].speed&&Math.hypot(troopVisualPoint(u).x-b.x,troopVisualPoint(u).y-b.y)<28);if(troop){if(!drag.shift)selected.clear();selected.add(troop.id);notice(TYPES[troop.type].name+' selected. Left-click ground to move.')}else if(!drag.shift&&issueMove(b)){/* Keep the formation selected after a movement order. */}else{if(!drag.shift)selected.clear();const base=units.find(u=>ApexFog.canSeeUnit(u)&&!TYPES[u.type].speed&&Math.abs(u.x-b.x)<750&&Math.abs(u.y-b.y)<250);if(base)selected.add(base.id)}}else{if(!drag.shift)selected.clear();units.filter(u=>ApexFog.canSeeUnit(u)&&TYPES[u.type].speed&&troopVisualPoint(u).x>=Math.min(a.x,b.x)&&troopVisualPoint(u).x<=Math.max(a.x,b.x)&&troopVisualPoint(u).y>=Math.min(a.y,b.y)&&troopVisualPoint(u).y<=Math.max(a.y,b.y)).forEach(u=>selected.add(u.id))}}expandGroupSelection();drag=null;canvas.style.cursor=tool==='select'?'default':'crosshair'};canvas.onpointercancel=()=>{cameraPanTarget=null;drag=null;canvas.style.cursor=tool==='select'?'default':'crosshair'};
+// DW5 BY() applies the 5x delta immediately in the mousemove handler.
+canvas.oncontextmenu=e=>e.preventDefault();canvas.onpointerdown=e=>{e.preventDefault();canvas.setPointerCapture(e.pointerId);let p=pos(e),w=world(p);if(e.button===2||e.button===1){drag={kind:'pan',button:e.button,start:p,last:p};canvas.style.cursor='grabbing';return}if(e.button!==0)return;if(tool!=='select'){if(w.x<0||w.x>WORLD_WIDTH||w.y<0||w.y>WORLD_HEIGHT)return;spawn(tool,w.x,w.y,team,TYPES[tool].speed?+$('quantity').value:1);notice(TYPES[tool].name+' deployed for '+(['Your','Enemy','Ally'][team])+' force.');return}drag={kind:'select',start:p,end:p,shift:e.shiftKey}};
+canvas.onpointermove=e=>{mouse=pos(e);if(!drag)return;if(drag.kind==='pan'){const dx=mouse.x-drag.last.x,dy=mouse.y-drag.last.y;lastPanInputAt=performance.now();cam.x=Math.max(0,Math.min(WORLD_WIDTH,cam.x-dx*CAMERA_PAN_SENSITIVITY/zoom));cam.y=Math.max(0,Math.min(WORLD_HEIGHT,cam.y-dy*CAMERA_PAN_SENSITIVITY/zoom));drag.last=mouse}else drag.end=mouse};
+canvas.onpointerup=e=>{if(drag?.kind==='pan'&&drag.button===2&&Math.hypot(drag.start.x-pos(e).x,drag.start.y-pos(e).y)<5)transferTroopToClickedGroup(world(pos(e)));if(drag?.kind==='select'){const a=world(drag.start),b=world(pos(e));if(Math.hypot(drag.start.x-pos(e).x,drag.start.y-pos(e).y)<5){const troop=units.slice().reverse().find(u=>ApexFog.canSeeUnit(u)&&TYPES[u.type].speed&&Math.hypot(troopVisualPoint(u).x-b.x,troopVisualPoint(u).y-b.y)<28);if(troop){if(!drag.shift)selected.clear();selected.add(troop.id);notice(TYPES[troop.type].name+' selected. Left-click ground to move.')}else if(!drag.shift&&issueMove(b)){/* Keep the formation selected after a movement order. */}else{if(!drag.shift)selected.clear();const base=units.find(u=>ApexFog.canSeeUnit(u)&&!TYPES[u.type].speed&&Math.abs(u.x-b.x)<750&&Math.abs(u.y-b.y)<250);if(base)selected.add(base.id)}}else{if(!drag.shift)selected.clear();units.filter(u=>ApexFog.canSeeUnit(u)&&TYPES[u.type].speed&&troopVisualPoint(u).x>=Math.min(a.x,b.x)&&troopVisualPoint(u).x<=Math.max(a.x,b.x)&&troopVisualPoint(u).y>=Math.min(a.y,b.y)&&troopVisualPoint(u).y<=Math.max(a.y,b.y)).forEach(u=>selected.add(u.id))}}expandGroupSelection();drag=null;canvas.style.cursor=tool==='select'?'default':'crosshair'};canvas.onpointercancel=()=>{drag=null;canvas.style.cursor=tool==='select'?'default':'crosshair'};
 canvas.onwheel=e=>{e.preventDefault();let p=pos(e),before=world(p);zoom=Math.max(.005,Math.min(2,zoom*Math.exp(-e.deltaY*.001)));let after=world(p);cam.x+=before.x-after.x;cam.y+=before.y-after.y};
 window.onkeydown=e=>{if(['INPUT','SELECT'].includes(e.target.tagName))return;if(e.code==='Space'){e.preventDefault();togglePause()}if(e.key==='Escape'){setTool('select');selected.clear()}if(e.key==='Delete'){units=units.filter(u=>!selected.has(u.id));selected.clear()}if(e.key.toLowerCase()==='a'){units.filter(u=>u.team===team&&TYPES[u.type].speed).forEach(u=>selected.add(u.id))}};
 mini.onclick=e=>{let r=mini.getBoundingClientRect();cam={x:(e.clientX-r.left)/r.width*WORLD_WIDTH,y:(e.clientY-r.top)/r.height*WORLD_HEIGHT}};
@@ -409,17 +407,25 @@ function drawDeathEffects(){
  }
 }
 function drawHiddenEnemyBase(u){
- // DW5 displays a location warning instead of rendering the unseen enemy base.
- if(zoom<.17)return;
- const x=u.x,y=u.y;
- ctx.save();
- ctx.textAlign='center';ctx.textBaseline='middle';
- ctx.font='24px Verdana,Arial,sans-serif';
- ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.95)';
- ctx.fillStyle='#b94e1e';
- ctx.strokeText('ENEMY IN FOG OF WAR',x,y);
- ctx.fillText('ENEMY IN FOG OF WAR',x,y);
+ // Show the same base footprint and perimeter, without factories, owner, flag,
+ // guns, production or upgrade details until friendly radar reveals the base.
+ if(zoom<.08)return;
+ ctx.save();ctx.translate(u.x,u.y);
+ const air=u.type==='airbase',heli=u.type==='helibase';
+ const terrain=dwArt[air?'berg4.jpg':heli?'berg3.jpg':'berg2.jpg'];
+ if(terrain?.complete&&terrain.naturalWidth)ctx.drawImage(terrain,-750,-250,1500,500);
+ const layout=baseDefenceLayout(u),ax=layout.ax,ay=layout.ay;
+ const front=dwArt['mauer2b.png'],side=dwArt['mauer2d.png'];
+ if(front?.complete&&front.naturalWidth)ctx.drawImage(front,ax-515,ay+10);
+ if(side?.complete&&side.naturalWidth)ctx.drawImage(side,ax+60,ay-180);
  ctx.restore();
+ // Label remains as in DW5, but only over the hidden base footprint.
+ if(zoom>=.17){
+  ctx.save();ctx.font='24px Verdana,Arial,sans-serif';ctx.textAlign='center';
+  ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.95)';ctx.fillStyle='#b94e1e';
+  ctx.strokeText('ENEMY IN FOG OF WAR',u.x,u.y);
+  ctx.fillText('ENEMY IN FOG OF WAR',u.x,u.y);ctx.restore();
+ }
 }
 function drawUnit(u){if(!TYPES[u.type].speed){if(zoom<.08){ctx.fillStyle=u.type==='airbase'?'#56a9ff':u.type==='helibase'?'#6ee9cf':colors[u.team];const r=2/zoom;ctx.fillRect(u.x-r,u.y-r,r*2,r*2);return;}actualBase(u);drawBaseFlag(u);drawBasePlayerName(u);drawBaseProduction(u);return}const def=nativeTroops[u.type],animation=troopAnimation(u),flight=def.air?airFlightPose(u):u;ctx.save();ctx.translate(flight.x,flight.y);
 if(selected.has(u.id)){if(u.target){ctx.setLineDash([5,7]);ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(u.target.x-u.x,u.target.y-u.y);ctx.stroke();ctx.setLineDash([])}}
@@ -746,7 +752,7 @@ function drawGeneratedRivers(){
 }
 
 let fpsFrames=0,fpsWindow=0,lastMini=0,groundPattern=null;
-function frame(now){fpsFrames++;if(now-fpsWindow>=500){$('fps').textContent='FPS '+Math.round(fpsFrames*1000/(now-fpsWindow));fpsFrames=0;fpsWindow=now;}let dt=Math.min(.05,(now-last)/1000||0);last=now;if(cameraPanTarget){const blend=1-Math.exp(-CAMERA_PAN_RESPONSE*dt);cam.x+=(cameraPanTarget.x-cam.x)*blend;cam.y+=(cameraPanTarget.y-cam.y)*blend;if(drag?.kind!=='pan'&&Math.abs(cameraPanTarget.x-cam.x)+Math.abs(cameraPanTarget.y-cam.y)<.05){cam={...cameraPanTarget};cameraPanTarget=null;}}if(!paused)update(dt*speed);ApexFog.update(now,units,TYPES,DW5_MENU_UNITS,WORLD_WIDTH,WORLD_HEIGHT);ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.fillStyle='#253021';ctx.fillRect(0,0,W,H);drawTerrainView();drawGeneratedRivers();drawMapCliffs();ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);ctx.strokeStyle='#dce4b609';ctx.lineWidth=1;for(let x=Math.max(0,Math.floor((cam.x-W/(2*zoom))/900)*900);x<=Math.min(WORLD_WIDTH,cam.x+W/(2*zoom));x+=900){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,WORLD_HEIGHT);ctx.stroke()}for(let y=Math.max(0,Math.floor((cam.y-H/(2*zoom))/900)*900);y<=Math.min(WORLD_HEIGHT,cam.y+H/(2*zoom));y+=900){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(WORLD_WIDTH,y);ctx.stroke()}ApexFog.draw(ctx);const visible=u=>ApexFog.canSeeUnit(u)&&Math.abs(u.x-cam.x)<W/(2*zoom)+(TYPES[u.type].speed?80:900)&&Math.abs(u.y-cam.y)<H/(2*zoom)+(TYPES[u.type].speed?80:500);for(const u of units)if(!TYPES[u.type].speed){if(visible(u))drawUnit(u);else if(u.team===1&&u.hp>0&&Math.abs(u.x-cam.x)<W/(2*zoom)+500&&Math.abs(u.y-cam.y)<H/(2*zoom)+250)drawHiddenEnemyBase(u);}// Paint ground vehicles first, helicopters above them, then fixed-wing
+function frame(now){fpsFrames++;if(now-fpsWindow>=500){$('fps').textContent='FPS '+Math.round(fpsFrames*1000/(now-fpsWindow));fpsFrames=0;fpsWindow=now;}let dt=Math.min(.05,(now-last)/1000||0);last=now;if(!paused)update(dt*speed);ApexFog.update(now,units,TYPES,DW5_MENU_UNITS,WORLD_WIDTH,WORLD_HEIGHT);ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.fillStyle='#253021';ctx.fillRect(0,0,W,H);drawTerrainView();drawGeneratedRivers();drawMapCliffs();ctx.save();ctx.translate(W/2,H/2);ctx.scale(zoom,zoom);ctx.translate(-cam.x,-cam.y);ctx.strokeStyle='#dce4b609';ctx.lineWidth=1;for(let x=Math.max(0,Math.floor((cam.x-W/(2*zoom))/900)*900);x<=Math.min(WORLD_WIDTH,cam.x+W/(2*zoom));x+=900){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,WORLD_HEIGHT);ctx.stroke()}for(let y=Math.max(0,Math.floor((cam.y-H/(2*zoom))/900)*900);y<=Math.min(WORLD_HEIGHT,cam.y+H/(2*zoom));y+=900){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(WORLD_WIDTH,y);ctx.stroke()}ApexFog.draw(ctx);const visible=u=>ApexFog.canSeeUnit(u)&&Math.abs(u.x-cam.x)<W/(2*zoom)+(TYPES[u.type].speed?80:900)&&Math.abs(u.y-cam.y)<H/(2*zoom)+(TYPES[u.type].speed?80:500);for(const u of units)if(!TYPES[u.type].speed){if(visible(u))drawUnit(u);else if(u.team===1&&u.hp>0&&Math.abs(u.x-cam.x)<W/(2*zoom)+500&&Math.abs(u.y-cam.y)<H/(2*zoom)+250)drawHiddenEnemyBase(u);}// Paint ground vehicles first, helicopters above them, then fixed-wing
 // aircraft above helicopters. Airborne units do not participate in collision.
 for(const u of units)if(TYPES[u.type].speed&&!nativeTroops[u.type]?.air&&visible(u))drawUnit(u);
 for(const u of units)if(TYPES[u.type].speed&&u.type==='heli'&&visible(u))drawUnit(u);
@@ -1624,6 +1630,6 @@ function generateWorldMap(nextSeed=true){
  const terrain=Dw5World.generate(riverSeed,WORLD_WIDTH,WORLD_HEIGHT,activeRiverPieces());
  mapTerrain=terrain;ApexFog.reset();units=[];selected.clear();shots=[];deathEffects.length=0;divisionMotion.clear();
  for(const b of terrain.bases){add(b.type,b.x,b.y,b.team);Object.assign(units.at(-1),{generatedBase:true,mapBaseId:b.index+1,playerName:b.team===0?'Player':'Opponent'});}
- cam={x:terrain.bases[0].x,y:terrain.bases[0].y};cameraPanTarget=null;pendingTerrainChunks.clear();zoom=1;
+ cam={x:terrain.bases[0].x,y:terrain.bases[0].y};pendingTerrainChunks.clear();zoom=1;
  notice('500 bases · 4 airbases · 20 helicopter bases · '+activeRiverPieces().filter(p=>p.type>=16).length+' bridges · seed '+riverSeed);
 }
